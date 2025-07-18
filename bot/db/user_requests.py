@@ -3,7 +3,7 @@ from sqlalchemy import select, func, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Donation, MedicalWaiver
 from sqlalchemy import and_, or_, not_
-from sqlalchemy.orm import aliased
+from sqlalchemy.orm import aliased, joinedload 
 from .models import User, Donation, MedicalWaiver, Event, Survey
 import logging
 logger = logging.getLogger(__name__)
@@ -53,13 +53,18 @@ async def update_user_profile(session: AsyncSession, user_id: int, data: dict):
     await session.commit()
 
 async def get_user_profile_info(session: AsyncSession, user_id: int) -> dict | None:
-    # Получить инфо профиля пользователя
     user = await session.get(User, user_id)
     if not user:
         return None
 
-    stmt_last_donation = select(Donation.donation_date, Donation.donation_type).where(Donation.user_id == user.id).order_by(Donation.donation_date.desc()).limit(1)
-    last_donation = (await session.execute(stmt_last_donation)).first()
+    stmt_last_donation = (
+        select(Donation)
+        .options(joinedload(Donation.event))
+        .where(Donation.user_id == user.id)
+        .order_by(Donation.donation_date.desc())
+        .limit(1)
+    )
+    last_donation_obj = (await session.execute(stmt_last_donation)).scalar_one_or_none()
 
     today = datetime.date.today()
     stmt_waiver = select(MedicalWaiver.end_date).where(MedicalWaiver.user_id == user.id, MedicalWaiver.end_date >= today).order_by(MedicalWaiver.end_date.desc()).limit(1)
@@ -68,8 +73,10 @@ async def get_user_profile_info(session: AsyncSession, user_id: int) -> dict | N
     next_possible_donation = today
     if active_waiver_end_date:
         next_possible_donation = active_waiver_end_date + datetime.timedelta(days=1)
-    elif last_donation:
-        last_date, last_type = last_donation
+    
+    if last_donation_obj:
+        last_date = last_donation_obj.donation_date
+        last_type = last_donation_obj.donation_type
         if last_type == 'whole_blood':
             interval = 90 if user.gender == 'female' else 60
             possible_date = last_date + datetime.timedelta(days=interval)
@@ -83,7 +90,8 @@ async def get_user_profile_info(session: AsyncSession, user_id: int) -> dict | N
     return {
         "user": user,
         "total_donations": total_donations,
-        "next_possible_donation": next_possible_donation
+        "next_possible_donation": next_possible_donation,
+        "last_donation": last_donation_obj 
     }
 
 async def get_user_donation_history(session: AsyncSession, user_id: int) -> list[Donation]:

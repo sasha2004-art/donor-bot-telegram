@@ -6,19 +6,26 @@ from bot.db import user_requests
 from bot.keyboards import inline
 from bot.utils.text_messages import Text
 
-from . import user_management, event_management, merch_management, mailing, system, analytics
-
+from .user_management import router as user_management_router
+from .event_management import router as event_management_router
+from .merch_management import router as merch_management_router
+from .mailing import router as mailing_router
+from .system import router as system_router
+from .analytics import router as analytics_router
+from .info_management import router as info_management_router
+from .qa_management import router as qa_management_router
 
 admin_router = Router(name="admin")
 
-
 admin_router.include_routers(
-    user_management.router,
-    event_management.router,
-    merch_management.router,
-    mailing.router,
-    system.router,
-    analytics.router, 
+    user_management_router,
+    event_management_router,
+    merch_management_router,
+    mailing_router,
+    system_router,
+    analytics_router,
+    info_management_router,
+    qa_management_router,
 )
 
 @admin_router.callback_query(F.data == "admin_panel", RoleFilter('admin'))

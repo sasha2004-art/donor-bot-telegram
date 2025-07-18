@@ -1,5 +1,3 @@
-# main.py
-
 import asyncio
 import logging
 import uvicorn
@@ -22,18 +20,20 @@ from aiogram.client.default import DefaultBotProperties
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.fsm.storage.redis import RedisStorage
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func
 
 from bot.middlewares.block import BlockUserMiddleware
 from bot.middlewares.db import DbSessionMiddleware
 from bot.config_reader import config
 from bot.db.engine import create_db_and_tables, async_session_maker
 from bot.db import admin_requests, user_requests, event_requests
-from bot.db.models import Survey, UserBlock
+from bot.db.models import Survey, UserBlock, InfoText   
 from bot.utils.scheduler import setup_scheduler
 from bot.handlers import common, student, volunteer, other
 from bot.handlers.admin import admin_router
 from bot.handlers.student import feedback_router
 from bot.utils.text_messages import Text
+
 
 
 
@@ -138,8 +138,8 @@ async def get_ngrok_url():
         await asyncio.sleep(3)
     return None
 
-async def initial_admin_setup():
-    logger.info("Checking for initial admin setup...")
+async def initial_admin_and_texts_setup(): 
+    logger.info("Checking for initial admin and texts setup...")
     async with async_session_maker() as session:
         users_exist = await admin_requests.check_if_users_exist(session)
         if not users_exist:
@@ -153,6 +153,23 @@ async def initial_admin_setup():
                 logger.error(f"Failed to create main admin: {e}", exc_info=True)
         else:
             logger.info("Users table is not empty. Skipping admin creation.")
+        
+        info_texts_in_db = (await session.execute(select(func.count(InfoText.section_key)))).scalar()
+        if info_texts_in_db == 0:
+            logger.warning("InfoTexts table is empty. Populating from Text class.")
+            texts_to_add = [
+                InfoText(section_key="prepare", section_title="Как подготовиться?", section_text=Text.INFO_PREPARE),
+                InfoText(section_key="contraindications", section_title="Противопоказания", section_text=Text.INFO_CONTRAINDICATIONS),
+                InfoText(section_key="after", section_title="Что делать после?", section_text=Text.INFO_AFTER),
+                InfoText(section_key="dkm", section_title="О донорстве костного мозга (ДКМ)", section_text=Text.INFO_DKM),
+                InfoText(section_key="mifi_process", section_title="О донациях в МИФИ", section_text=Text.INFO_MIFI_PROCESS),
+                InfoText(section_key="contacts", section_title="Связаться с организаторами", section_text=Text.INFO_CONTACTS)
+            ]
+            session.add_all(texts_to_add)
+            await session.commit()
+            logger.info("InfoTexts table populated successfully.")
+        else:
+            logger.info("InfoTexts table already populated. Skipping.")
             
 def setup_aiogram_routers():
     dp.update.middleware(DbSessionMiddleware(session_pool=async_session_maker)) 
@@ -277,7 +294,7 @@ async def lifespan(app: FastAPI):
         dp["ngrok_url"] = None
     
     await create_db_and_tables()
-    await initial_admin_setup()
+    await initial_admin_and_texts_setup()
     scheduler = setup_scheduler(bot, async_session_maker, storage)
     scheduler.start()
     asyncio.create_task(dp.start_polling(bot, dp=dp))

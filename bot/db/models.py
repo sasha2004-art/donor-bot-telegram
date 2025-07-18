@@ -161,3 +161,39 @@ class Survey(Base):
     verdict_text: Mapped[str] = mapped_column(Text, nullable=True)
     
     user: Mapped["User"] = relationship()
+    
+    
+class InfoText(Base):
+    __tablename__ = 'info_texts'
+    section_key: Mapped[str] = mapped_column(String(50), primary_key=True)
+    section_title: Mapped[str] = mapped_column(String(100))
+    section_text: Mapped[str] = mapped_column(Text)
+    
+class Question(Base):
+    __tablename__ = 'questions'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    
+    question_text: Mapped[str] = mapped_column(Text)
+    answer_text: Mapped[str] = mapped_column(Text, nullable=True)
+    
+    status: Mapped[str] = mapped_column(String(50), default='unanswered', index=True) # unanswered, answered
+    
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    answered_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+    answered_by_admin_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id])
+    answered_by_admin: Mapped["User"] = relationship(foreign_keys=[answered_by_admin_id])
+    
+    
+    
+class NoShowReport(Base):
+    __tablename__ = 'no_show_reports'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    event_id: Mapped[int] = mapped_column(ForeignKey('events.id'), index=True)
+    reason: Mapped[str] = mapped_column(String(100))
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    user: Mapped["User"] = relationship()
+    event: Mapped["Event"] = relationship()

@@ -1,6 +1,8 @@
+from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from bot.db.models import MerchItem
+from bot.db.models import MerchItem, InfoText
+from aiogram.fsm.context import FSMContext
 
 # --- КЛАВИАТУРЫ ---
 
@@ -9,7 +11,21 @@ def get_back_to_main_menu_keyboard():
     builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
     return builder.as_markup()
 
-# --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+def get_category_keyboard():
+    """Клавиатура для выбора категории пользователя."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Студент", callback_data="category_student"))
+    builder.row(InlineKeyboardButton(text="Сотрудник", callback_data="category_employee"))
+    builder.row(InlineKeyboardButton(text="Внешний донор", callback_data="category_external"))
+    return builder.as_markup()
+
+def get_consent_keyboard():
+    """Клавиатура для подтверждения согласия на обработку ПДн."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="✅ Принимаю условия", callback_data="consent_given"))
+    return builder.as_markup()
+
+
 def get_student_main_menu(viewer_role: str = 'student'):
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📅 Записаться на донацию", callback_data="register_donation"))
@@ -17,16 +33,14 @@ def get_student_main_menu(viewer_role: str = 'student'):
     builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))
     builder.row(InlineKeyboardButton(text="ℹ️ Полезная информация", callback_data="info"))
     builder.row(InlineKeyboardButton(text="⚕️ Мои медотводы", callback_data="my_waivers"))
+    builder.row(InlineKeyboardButton(text="❓ Задать вопрос организаторам", callback_data="ask_question"))
     
-    # Эта логика теперь корректно обрабатывает все роли
     if viewer_role == 'volunteer':
-        # Волонтер видит кнопку для возврата в свое меню
         builder.row(InlineKeyboardButton(
             text="⭐ Вернуться в меню волонтера",
             callback_data="volunteer_panel"
         ))
     elif viewer_role in ['admin', 'main_admin']:
-        # Админ видит ДВЕ кнопки: для перехода в режим волонтера и для возврата в админ-панель
         builder.row(InlineKeyboardButton(
             text="⭐ Перейти в режим волонтера",
             callback_data="switch_to_volunteer_view"
@@ -53,24 +67,20 @@ def get_main_admin_main_menu(viewer_role: str = 'main_admin'):
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="⚙️ Открыть панель администратора", callback_data="admin_panel"))
     return builder.as_markup()
-# --- КОНЕЦ ИСПРАВЛЕНИЙ В ЭТОЙ ЧАСТИ ---
 
-# --- ИЗМЕНЕНИЕ: Новая клавиатура для выбора ВУЗа ---
 def get_university_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="НИЯУ МИФИ", callback_data="university_mifi"))
     builder.row(InlineKeyboardButton(text="Другой вуз", callback_data="university_other"))
     return builder.as_markup()
-# --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
 
 def get_faculties_keyboard():
     faculties = ["ИИКС", "ФИБС", "ИнЯз", "ИФТЭБ", "БМТ", "ИФИБ"]
     builder = InlineKeyboardBuilder()
     for faculty in faculties:
         builder.row(InlineKeyboardButton(text=faculty, callback_data=f"faculty_{faculty}"))
-    # --- ИЗМЕНЕНИЕ: Добавляем data для колбэка ---
     builder.row(InlineKeyboardButton(text="Другой/Не из списка", callback_data="faculty_Other"))
-    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
     return builder.as_markup()
 
 def get_blood_type_keyboard():
@@ -109,6 +119,8 @@ def get_info_menu_keyboard():
     builder.row(InlineKeyboardButton(text="Как подготовиться?", callback_data="info_prepare"))
     builder.row(InlineKeyboardButton(text="Противопоказания", callback_data="info_contraindications"))
     builder.row(InlineKeyboardButton(text="Что делать после?", callback_data="info_after"))
+    builder.row(InlineKeyboardButton(text="🩸 О донорстве костного мозга (ДКМ)", callback_data="info_dkm"))
+    builder.row(InlineKeyboardButton(text="🏥 О донациях в МИФИ", callback_data="info_mifi_process"))
     builder.row(InlineKeyboardButton(text="Связаться с организаторами", callback_data="info_contacts"))
     builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
     return builder.as_markup()
@@ -148,14 +160,31 @@ def get_back_to_merch_keyboard():
 def get_admin_panel_keyboard(viewer_role: str):
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="🗓️ Упр. мероприятиями", callback_data="admin_manage_events"))
+    builder.row(types.InlineKeyboardButton(text="❓ Вопросы от пользователей", callback_data="admin_answer_questions"))
     builder.row(InlineKeyboardButton(text="👥 Упр. пользователями", callback_data="admin_manage_users"))
     builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
     builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
     builder.row(InlineKeyboardButton(text="📣 Рассылки", callback_data="admin_mailing"))
     builder.row(InlineKeyboardButton(text="📊 Аналитика", callback_data="admin_analytics"))
+    builder.row(InlineKeyboardButton(text="📝 Ред. инфо-разделы", callback_data="admin_edit_info"))
     if viewer_role == 'main_admin':
-        builder.row(InlineKeyboardButton(text="💾 Экспорт данных", callback_data="ma_export_data"))
+        builder.row(
+        types.InlineKeyboardButton(text="💾 Экспорт данных", callback_data="ma_export_data"),
+        types.InlineKeyboardButton(text="📥 Импорт данных", callback_data="ma_import_data")
+        )
     builder.row(InlineKeyboardButton(text="👤 Перейти в режим донора", callback_data="switch_to_donor_view"))
+    return builder.as_markup()
+
+
+
+def get_info_sections_for_editing_keyboard(sections: list[InfoText]):
+    builder = InlineKeyboardBuilder()
+    for section in sections:
+        builder.row(types.InlineKeyboardButton(
+            text=section.section_title,
+            callback_data=f"edit_info_{section.section_key}"
+        ))
+    builder.row(types.InlineKeyboardButton(text="↩️ Назад", callback_data="admin_panel"))
     return builder.as_markup()
 
 def get_analytics_main_menu_keyboard():
@@ -391,6 +420,7 @@ def get_user_management_main_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📜 Список всех пользователей", callback_data="admin_users_list_page_1"))
     builder.row(InlineKeyboardButton(text="🔍 Найти пользователя", callback_data="admin_search_user"))
+    builder.row(InlineKeyboardButton(text="➕ Добавить пользователя вручную", callback_data="admin_add_user_start"))
     builder.row(InlineKeyboardButton(text="↩️ Назад в админ-панель", callback_data="admin_panel"))
     return builder.as_markup()
 
@@ -578,4 +608,41 @@ def get_feedback_organization_keyboard():
 def get_feedback_skip_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="➡️ Пропустить", callback_data="fb_skip_step"))
+    return builder.as_markup()
+
+
+
+def get_events_for_post_processing_keyboard(events: list):
+    """Клавиатура для выбора прошедшего мероприятия для обработки."""
+    builder = InlineKeyboardBuilder()
+    for event in events:
+        builder.row(types.InlineKeyboardButton(
+            text=f"{event.event_datetime.strftime('%d.%m.%y')} - {event.name}",
+            callback_data=f"post_process_event_{event.id}"
+        ))
+    builder.row(types.InlineKeyboardButton(text="↩️ Назад", callback_data="admin_manage_events"))
+    return builder.as_markup()
+
+def get_participant_marking_keyboard(event_id: int, participants: list, marked_donations: set, marked_dkm: set):
+    """Динамическая клавиатура для отметки участников."""
+    builder = InlineKeyboardBuilder()
+    for reg in participants:
+        user = reg.user
+        
+        donation_icon = "🟢" if user.id in marked_donations else "⚪️"
+        dkm_icon = "🟢" if user.id in marked_dkm else "⚪️"
+
+        builder.row(
+            types.InlineKeyboardButton(text=user.full_name, callback_data="ignore"),
+            types.InlineKeyboardButton(
+                text=f"{donation_icon} Сдал кровь", 
+                callback_data=f"mark_participant_{event_id}_{user.id}_donation"
+            ),
+            types.InlineKeyboardButton(
+                text=f"{dkm_icon} Вступил в ДКМ", 
+                callback_data=f"mark_participant_{event_id}_{user.id}_dkm"
+            )
+        )
+    builder.row(types.InlineKeyboardButton(text="✅ Сохранить изменения и завершить", callback_data=f"finish_marking_{event_id}"))
+    builder.row(types.InlineKeyboardButton(text="❌ Отмена", callback_data="admin_manage_events"))
     return builder.as_markup()

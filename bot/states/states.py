@@ -2,6 +2,8 @@ from aiogram.fsm.state import State, StatesGroup
 
 class Registration(StatesGroup):
     awaiting_full_name = State()
+    awaiting_category = State()
+    awaiting_consent = State()
     awaiting_university = State()
     awaiting_custom_university_name = State()
     awaiting_faculty = State()
@@ -84,3 +86,34 @@ class FeedbackSurvey(StatesGroup):
     
 class AdminAnalytics(StatesGroup):
     choosing_event_for_analysis = State()
+    
+class AdminAddUser(StatesGroup):
+    awaiting_phone = State()
+    awaiting_full_name = State()
+    awaiting_category = State()
+    awaiting_consent = State()
+    awaiting_university = State()
+    awaiting_custom_university_name = State()
+    awaiting_faculty = State()
+    awaiting_custom_faculty_name = State()
+    awaiting_study_group = State()
+    awaiting_blood_type = State()
+    awaiting_rh_factor = State()
+    awaiting_gender = State()
+    
+class PostEventProcessing(StatesGroup):
+    choosing_event = State()
+    marking_participants = State()
+    
+class EditInfoSection(StatesGroup):
+    choosing_section = State()
+    awaiting_new_text = State()
+    
+class AskQuestion(StatesGroup):
+    awaiting_question = State()
+
+class AnswerQuestion(StatesGroup):
+    awaiting_answer = State()
+    
+class DataImport(StatesGroup):
+    awaiting_file = State()

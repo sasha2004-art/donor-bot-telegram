@@ -2,10 +2,9 @@ from aiogram import Router, F, types
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import any_state
-from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.db import user_requests
 from bot.states.states import Registration
@@ -23,7 +22,7 @@ ROLE_MENU_MAP = {
 router = Router()
 
 # =============================================================================
-# --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ/РЕДАКТИРОВАНИЯ МЕНЮ ---
+# --- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТПРАВКИ/РЕДАКТИРОВАНИЯ МЕНЮ ---
 # =============================================================================
 
 async def send_or_edit_main_menu(
@@ -50,7 +49,6 @@ async def send_or_edit_main_menu(
         await message_to_handle.answer(Text.USER_BLOCKED_MESSAGE, reply_markup=ReplyKeyboardRemove())
         return
 
-    # 1. Определяем текст приветствия
     if welcome_text:
         greeting = welcome_text
     elif force_role == 'student':
@@ -58,70 +56,53 @@ async def send_or_edit_main_menu(
     else:
         greeting = Text.WELCOME_BACK.format(name=user.full_name)
 
-    # 2. Собираем единый текст для сообщения
     combined_text = f"{greeting}\n\n{Text.MAIN_MENU_PROMPT}"
-
-    # 3. Определяем, какую inline-клавиатуру показать
     effective_role = force_role if force_role else user.role
     menu_func = ROLE_MENU_MAP.get(effective_role, inline.get_student_main_menu)
     inline_kbd = menu_func(viewer_role=user.role)
 
-    # 4. Отправляем или редактируем сообщение
     if isinstance(event, types.Message):
-        # Для новых сообщений (/start, "Домой") - отправляем одно новое сообщение с меню
         await message_to_handle.answer(
             combined_text,
             reply_markup=inline_kbd,
             parse_mode="HTML"
         )
     elif isinstance(event, types.CallbackQuery):
-        # Для колбэков ("Назад в меню") - редактируем существующее
         try:
             await message_to_handle.edit_text(combined_text, reply_markup=inline_kbd, parse_mode="HTML")
         except TelegramBadRequest as e:
             if "message is not modified" in str(e):
-                await event.answer() # Игнорируем ошибку, если сообщение не изменилось
+                await event.answer()
             else:
-                # Если отредактировать не удалось (например, сообщение слишком старое), удаляем его и отправляем новое
                 await message_to_handle.delete()
                 await message_to_handle.answer(combined_text, reply_markup=inline_kbd, parse_mode="HTML")
         await event.answer()
 
-# --- ИСПРАВЛЕННЫЕ ХЕНДЛЕРЫ ---
+
 @router.message(F.text == "🏠 Домой")
 @router.message(CommandStart())
 async def cmd_start_or_home(message: types.Message, session: AsyncSession):
-    """
-    Устанавливает Reply-клавиатуру и показывает главное меню.
-    Теперь это делается более "незаметно".
-    """
-    # Сначала устанавливаем постоянную клавиатуру с кнопкой "Домой"
-    # await message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
-    # И сразу же отправляем основное меню с inline-кнопками
     await send_or_edit_main_menu(message, session)
 
 
 @router.callback_query(F.data == "back_to_main_menu")
 async def handle_back_to_main_menu(callback: types.CallbackQuery, session: AsyncSession):
-    """Обрабатывает все стандартные кнопки 'Назад в меню'."""
     await send_or_edit_main_menu(callback, session)
 
 
 @router.callback_query(F.data == "switch_to_donor_view")
 async def handle_switch_to_donor_view(callback: types.CallbackQuery, session: AsyncSession):
-    """Обрабатывает переход в режим донора, принудительно показывая меню студента."""
     await send_or_edit_main_menu(callback, session, force_role='student')
 
+
 # =============================================================================
-# --- ЛОГИКА РЕГИСТРАЦИИ ---
+# --- ЛОГИКА РЕГИСТРАЦИИ (ИСПРАВЛЕННАЯ ВЕРСИЯ) ---
 # =============================================================================
 
 @router.message(F.contact)
 async def handle_contact(message: types.Message, session: AsyncSession, state: FSMContext):
     user = await user_requests.get_user_by_tg_id(session, message.from_user.id)
     if user:
-        # Устанавливаем клавиатуру и показываем меню
-        # await message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
         await send_or_edit_main_menu(message, session, welcome_text=Text.ALREADY_REGISTERED.format(name=user.full_name))
         return
         
@@ -137,8 +118,6 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
             return
             
         await user_requests.update_user_credentials(session, user_by_phone.id, message.from_user.id, message.from_user.username)
-        # Устанавливаем клавиатуру и показываем меню
-        # await message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
         await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_phone.full_name))
     else:
         await state.update_data(
@@ -153,9 +132,34 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 
 @router.message(Registration.awaiting_full_name)
 async def process_full_name(message: types.Message, state: FSMContext):
-    await state.update_data(full_name=message.text)
-    await message.answer(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
+    full_name = message.text.strip()
+    
+    allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
+    if not all(c.lower() in allowed_chars or c.isspace() for c in full_name):
+        await message.answer(Text.FIO_VALIDATION_ERROR)
+        return
+        
+    name_parts = full_name.split()
+    if len(name_parts) < 2:
+        await message.answer("Пожалуйста, введите как минимум Фамилию и Имя.")
+        return
+    
+    corrected_name = " ".join([part.strip().capitalize() for part in name_parts])
+    await state.update_data(full_name=corrected_name)
+    
+    await message.answer(Text.GET_CATEGORY, reply_markup=inline.get_category_keyboard())
+    await state.set_state(Registration.awaiting_category)
+
+
+# --- НОВЫЙ ХЕНДЛЕР: Обработка категории ---
+@router.callback_query(Registration.awaiting_category, F.data.startswith('category_'))
+async def process_category(callback: types.CallbackQuery, state: FSMContext):
+    category = callback.data.split('_', 1)[1]
+    await state.update_data(category=category)
+    
+    await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
     await state.set_state(Registration.awaiting_university)
+    await callback.answer()
 
 
 @router.callback_query(Registration.awaiting_university, F.data.startswith('university_'))
@@ -229,13 +233,26 @@ async def process_rh_factor(callback: types.CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(Registration.awaiting_gender, F.data.startswith("gender_"))
-async def process_gender(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+async def process_gender(callback: types.CallbackQuery, state: FSMContext):
     gender = callback.data.split('_', 1)[1]
     gender_text = "Мужской" if gender == "male" else "Женский"
     
     await callback.message.edit_text(Text.GENDER_SELECTED.format(gender=gender_text))
-    
     await state.update_data(gender=gender)
+    
+    await callback.message.answer(
+        Text.CONSENT_TEXT, 
+        reply_markup=inline.get_consent_keyboard(),
+        parse_mode="HTML"
+    )
+    await state.set_state(Registration.awaiting_consent)
+    await callback.answer()
+
+
+# --- НОВЫЙ ХЕНДЛЕР: Обработка согласия и завершение регистрации ---
+@router.callback_query(Registration.awaiting_consent, F.data == "consent_given")
+async def process_consent(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    await state.update_data(consent_given=True)
     user_data = await state.get_data()
     user_data.setdefault('faculty', 'Не указан')
     user_data.setdefault('study_group', 'Не указана')
@@ -244,9 +261,13 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext, sessi
     await session.commit()
     await state.clear()
     
-    # После регистрации устанавливаем клавиатуру и показываем меню
-    # await callback.message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
-    await send_or_edit_main_menu(callback.message, session, welcome_text=Text.REGISTRATION_COMPLETE.format(name=new_user.full_name))
+    await callback.message.delete()
+    
+    await send_or_edit_main_menu(
+        callback.message, 
+        session, 
+        welcome_text=Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)
+    )
     await callback.answer()
 
 
@@ -271,7 +292,6 @@ async def cancel_fsm_handler(event: types.Message | types.CallbackQuery, state: 
     else:
         await event.answer(Text.ACTION_CANCELLED)
     
-    # После отмены тоже показываем единое меню
     await send_or_edit_main_menu(message_to_use, session)
     if isinstance(event, types.CallbackQuery):
         await event.answer()
@@ -294,6 +314,7 @@ async def secret_admin_panel(message: types.Message, session: AsyncSession):
 
 @router.callback_query(F.data == "switch_to_volunteer_view", RoleFilter('admin'))
 async def switch_to_volunteer_view_handler(callback: types.CallbackQuery):
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
     builder = InlineKeyboardBuilder()
     builder.row(types.InlineKeyboardButton(text="📷 Подтвердить донацию (QR)", callback_data="confirm_donation_qr"))
     builder.row(types.InlineKeyboardButton(text="↩️ Назад в меню донора", callback_data="switch_to_donor_view"))

@@ -70,18 +70,21 @@ class MockLocation:
         (
             "mifi_standard_faculty",
             [
+                ("callback", "category_student"),
                 ("callback", "university_mifi"), 
                 ("callback", "faculty_ИИКС"),
                 ("message", "Б20-505"),
                 ("callback", "bloodtype_A(II)"),
                 ("callback", "rhfactor_+"),
                 ("callback", "gender_male"),
+                ("callback", "consent_given"),
             ],
-            {"university": "НИЯУ МИФИ", "faculty": "ИИКС", "study_group": "Б20-505"}
+            {"category": "student", "university": "НИЯУ МИФИ", "faculty": "ИИКС", "study_group": "Б20-505"}
         ),
         (
             "mifi_custom_faculty",
             [
+                ("callback", "category_employee"),
                 ("callback", "university_mifi"),
                 ("callback", "faculty_Other"),
                 ("message", "Институт ЛаПлаз"),
@@ -89,12 +92,14 @@ class MockLocation:
                 ("callback", "bloodtype_O(I)"),
                 ("callback", "rhfactor_-"),
                 ("callback", "gender_female"),
+                ("callback", "consent_given"),
             ],
-            {"university": "НИЯУ МИФИ", "faculty": "Институт ЛаПлаз", "study_group": "Л2-101"}
+            {"category": "employee", "university": "НИЯУ МИФИ", "faculty": "Институт ЛаПлаз", "study_group": "Л2-101"}
         ),
         (
-            "other_university",
+            "other_university_external_donor",
             [
+                ("callback", "category_external"),
                 ("callback", "university_other"),
                 ("message", "МГУ"),
                 ("message", "ВМК"),
@@ -102,14 +107,15 @@ class MockLocation:
                 ("callback", "bloodtype_B(III)"),
                 ("callback", "rhfactor_+"),
                 ("callback", "gender_male"),
+                ("callback", "consent_given"),
             ],
-            {"university": "МГУ", "faculty": "ВМК", "study_group": "231"}
+            {"category": "external", "university": "МГУ", "faculty": "ВМК", "study_group": "231"}
         )
     ]
 )
 async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_data, session: AsyncSession):
     """
-    Тестирует различные сценарии прохождения регистрации FSM.
+    Тестирует различные сценарии прохождения регистрации FSM (ОБНОВЛЕННАЯ ВЕРСИЯ).
     """
     state = MockFSMContext()
     
@@ -120,40 +126,49 @@ async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_da
     
     fio_message = MockMessage("Тестовый Тест Тестович")
     await common_handlers.process_full_name(fio_message, state)
-    assert await state.get_state() == Registration.awaiting_university
+    assert await state.get_state() == Registration.awaiting_category
     
+
     for input_type, value in user_inputs:
+        current_state_before = await state.get_state()
+        
         if input_type == "callback":
             callback = MockCallbackQuery(data=value)
-            current_state = await state.get_state()
-            if current_state == Registration.awaiting_university:
+            
+            if current_state_before == Registration.awaiting_category:
+                await common_handlers.process_category(callback, state)
+            elif current_state_before == Registration.awaiting_university:
                 await common_handlers.process_university_choice(callback, state)
-            elif current_state == Registration.awaiting_faculty:
+            elif current_state_before == Registration.awaiting_faculty:
                 await common_handlers.process_faculty(callback, state)
-            elif current_state == Registration.awaiting_blood_type:
+            elif current_state_before == Registration.awaiting_blood_type:
                 await common_handlers.process_blood_type(callback, state)
-            elif current_state == Registration.awaiting_rh_factor:
+            elif current_state_before == Registration.awaiting_rh_factor:
                 await common_handlers.process_rh_factor(callback, state)
-            elif current_state == Registration.awaiting_gender:
-                await common_handlers.process_gender(callback, state, session)
+            elif current_state_before == Registration.awaiting_gender:
+                await common_handlers.process_gender(callback, state)
+            elif current_state_before == Registration.awaiting_consent:
+                await common_handlers.process_consent(callback, state, session)
         
         elif input_type == "message":
             message = MockMessage(text=value)
-            current_state = await state.get_state()
-            if current_state == Registration.awaiting_custom_university_name:
+            
+            if current_state_before == Registration.awaiting_custom_university_name:
                 await common_handlers.process_custom_university_name(message, state)
-            elif current_state == Registration.awaiting_custom_faculty_name:
+            elif current_state_before == Registration.awaiting_custom_faculty_name:
                 await common_handlers.process_custom_faculty_name(message, state)
-            elif current_state == Registration.awaiting_study_group:
+            elif current_state_before == Registration.awaiting_study_group:
                 await common_handlers.process_study_group(message, state)
                 
     assert await state.get_state() is None 
     
-    created_user = await session.get(User, 1) 
+    created_user = (await session.execute(select(User).where(User.telegram_id == 123))).scalar_one()
     assert created_user is not None
     assert created_user.university == expected_fsm_data["university"]
     assert created_user.faculty == expected_fsm_data["faculty"]
     assert created_user.study_group == expected_fsm_data["study_group"]
+    assert created_user.category == expected_fsm_data["category"]
+    assert created_user.consent_given is True
     assert created_user.full_name == "Тестовый Тест Тестович"
     assert created_user.telegram_username == "test_user_fsm"
 

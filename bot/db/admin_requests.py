@@ -1,4 +1,5 @@
 import datetime
+import logging # <-- ДОБАВИТЬ ЭТУ СТРОКУ
 from sqlalchemy import select, update, or_, func, String, delete, distinct, extract
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
@@ -7,9 +8,10 @@ from .models import (
     MerchItem, MerchOrder, UserBlock
 )
 from .models import Feedback
-from .event_requests import find_specific_registration, add_event_registration
+from .event_requests import find_specific_registration, add_event_registration, confirm_donation_transaction
 import math
 
+logger = logging.getLogger(__name__) 
 
 async def check_if_users_exist(session: AsyncSession) -> bool:
     user_count = await session.scalar(select(func.count(User.id)))
@@ -311,3 +313,35 @@ async def get_distinct_faculties(session: AsyncSession) -> list[str]:
     )
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+async def manually_confirm_donation(session: AsyncSession, user_id: int, event_id: int, became_dkm_donor: bool) -> tuple[bool, str]:
+    """
+    Вручную подтверждает донацию для пользователя на мероприятии.
+    Возвращает (успех, сообщение).
+    """
+    user = await session.get(User, user_id)
+    event = await session.get(Event, event_id)
+    if not user or not event:
+        return False, "Пользователь или мероприятие не найдены."
+
+    registration = await find_specific_registration(session, user_id, event_id)
+    if not registration:    
+        registration = EventRegistration(user_id=user_id, event_id=event_id)
+        session.add(registration)
+        await session.flush()
+
+    if registration.status == 'attended':
+        return False, f"Донация для {user.full_name} уже была подтверждена."
+
+    try:
+        await confirm_donation_transaction(session, user, registration)
+        if became_dkm_donor and not user.is_dkm_donor:
+            user.is_dkm_donor = True
+            
+        await session.commit()
+        return True, f"Донация для {user.full_name} подтверждена."
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Error in manually_confirm_donation for user {user_id}: {e}")
+        return False, f"Ошибка при подтверждении для {user.full_name}: {e}"

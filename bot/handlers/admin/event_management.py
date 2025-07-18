@@ -14,10 +14,11 @@ from sqlalchemy import select, func
 from bot.db import admin_requests, event_requests, user_requests
 from bot.db.engine import async_session_maker
 from bot.filters.role import RoleFilter
-from bot.states.states import EventCreation, EventEditing
+from bot.states.states import EventCreation, EventEditing, PostEventProcessing
 from bot.keyboards import inline
 from bot.db.models import Event, User
 from bot.utils.text_messages import Text
+from bot.db import analytics_requests
 
 
 router = Router(name="admin_event_management")
@@ -464,3 +465,96 @@ async def view_event_feedback(callback: types.CallbackQuery, session: AsyncSessi
             )
     
     await callback.answer()
+    
+    
+    
+@router.callback_query(F.data == "admin_post_process_dd", RoleFilter('admin'))
+async def start_post_processing(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Начало FSM: Выбор прошедшего мероприятия."""
+    await state.clear()
+    past_events = await analytics_requests.get_past_events_for_analysis(session)
+    if not past_events:
+        await callback.answer("Нет прошедших мероприятий для обработки.", show_alert=True)
+        return
+
+    await state.set_state(PostEventProcessing.choosing_event)
+    await callback.message.edit_text(
+        "Выберите мероприятие, для которого хотите внести данные:",
+        reply_markup=inline.get_events_for_post_processing_keyboard(past_events)
+    )
+    await callback.answer()
+
+async def show_participant_marking_menu(message: types.Message, state: FSMContext, session: AsyncSession):
+    """Вспомогательная функция для отображения и обновления меню отметки."""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    marked_donations = data.get("marked_donations", set())
+    marked_dkm = data.get("marked_dkm", set())
+
+    _, participants = await admin_requests.get_event_with_participants(session, event_id)
+    if not participants:
+        await message.edit_text("На это мероприятие не было зарегистрировано участников.", reply_markup=inline.get_back_to_events_menu_keyboard())
+        await state.clear()
+        return
+
+    await message.edit_text(
+        "Отметьте, кто сдал кровь и/или вступил в регистр ДКМ.\n(🟢 - отмечено, ⚪️ - нет)",
+        reply_markup=inline.get_participant_marking_keyboard(event_id, participants, marked_donations, marked_dkm)
+    )
+
+@router.callback_query(PostEventProcessing.choosing_event, F.data.startswith("post_process_event_"))
+async def choose_event_for_processing(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Шаг 2: Мероприятие выбрано, показываем список участников."""
+    event_id = int(callback.data.split("_")[-1])
+    await state.update_data(event_id=event_id, marked_donations=set(), marked_dkm=set())
+    await state.set_state(PostEventProcessing.marking_participants)
+    await show_participant_marking_menu(callback.message, state, session)
+    await callback.answer()
+    
+@router.callback_query(PostEventProcessing.marking_participants, F.data.startswith("mark_participant_"))
+async def mark_participant(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Обработка нажатия на кнопку отметки (toggle)."""
+    _, _, event_id_str, user_id_str, action = callback.data.split("_")
+    user_id = int(user_id_str)
+
+    data = await state.get_data()
+    target_set_name = "marked_donations" if action == "donation" else "marked_dkm"
+    target_set = data.get(target_set_name, set())
+
+    if user_id in target_set:
+        target_set.remove(user_id)
+    else:
+        target_set.add(user_id)
+    
+    await state.update_data(**{target_set_name: target_set})
+    
+    # Обновляем клавиатуру, чтобы показать изменение
+    await show_participant_marking_menu(callback.message, state, session)
+    await callback.answer()
+
+@router.callback_query(PostEventProcessing.marking_participants, F.data.startswith("finish_marking_"))
+async def finish_marking(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Завершение процесса: сохраняем все отметки в БД."""
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    marked_donations = data.get("marked_donations", set())
+    marked_dkm = data.get("marked_dkm", set())
+    await state.clear()
+
+    if not marked_donations:
+        await callback.answer("Ни один участник не отмечен как сдавший кровь.", show_alert=True)
+        return
+        
+    await callback.message.edit_text("⏳ Сохраняю данные... Это может занять некоторое время.")
+
+    report_lines = []
+    for user_id in marked_donations:
+        is_dkm = user_id in marked_dkm
+        success, message = await admin_requests.manually_confirm_donation(session, user_id, event_id, is_dkm)
+        report_lines.append(message)
+    
+    await session.commit()
+    
+    final_report = "✅ <b>Обработка завершена.</b>\n\n<b>Результаты:</b>\n" + "\n".join(report_lines)
+    await callback.message.edit_text(final_report, reply_markup=inline.get_back_to_events_menu_keyboard())
+    await callback.answer("Данные сохранены!", show_alert=True)

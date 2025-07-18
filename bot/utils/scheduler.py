@@ -5,7 +5,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy import select, and_
 from sqlalchemy.orm import joinedload
-from bot.db.models import EventRegistration, MedicalWaiver, Event, User, Donation
+from bot.db.models import EventRegistration, MedicalWaiver, Event, User, Donation, NoShowReport
 from bot.utils.text_messages import Text
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
@@ -163,6 +163,14 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
     scheduler.add_job(
+        send_no_show_surveys,
+        trigger='cron',
+        hour='*',
+        minute=5, 
+        args=[bot, session_pool]
+    )
+
+    scheduler.add_job(
         send_reminders_for_interval,
         trigger='cron',
         hour=10,
@@ -201,3 +209,58 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
     
     logger.info("Scheduler configured successfully with 5 jobs.")
     return scheduler
+
+async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):
+    """Находит неявившихся участников и отправляет им опрос."""
+    now = datetime.datetime.now()
+    # Ищем мероприятия, которые закончились 3-4 часа назад
+    start_window = now - datetime.timedelta(hours=4)
+    end_window = now - datetime.timedelta(hours=3)
+
+    logger.info(f"Running no-show survey job for events ended between {start_window} and {end_window}")
+
+    async with session_pool() as session:
+        stmt = (
+            select(EventRegistration)
+            .join(Event)
+            .where(
+                Event.event_datetime.between(start_window, end_window),
+                EventRegistration.status == 'registered'
+            )
+            .options(joinedload(EventRegistration.user), joinedload(EventRegistration.event))
+        )
+        results = await session.execute(stmt)
+        no_shows = results.scalars().unique().all()
+        
+        if not no_shows:
+            logger.info("No participants found for no-show survey.")
+            return
+
+        for reg in no_shows:
+            try:
+                builder = types.InlineKeyboardBuilder()
+                reasons = {
+                    "medical": "Медотвод (болезнь)",
+                    "personal": "Личные причины",
+                    "forgot": "Забыл(а) / не захотел(а)"
+                }
+                for key, text in reasons.items():
+                    builder.row(types.InlineKeyboardButton(
+                        text=text,
+                        callback_data=f"no_show_{reg.event_id}_{key}"
+                    ))
+                
+                await bot.send_message(
+                    chat_id=reg.user.telegram_id,
+                    text=(
+                        f"Добрый день! Вы были записаны на донорскую акцию «{reg.event.name}», "
+                        "но не отметились у волонтеров. Подскажите, пожалуйста, почему не получилось прийти?"
+                    ),
+                    reply_markup=builder.as_markup()
+                )
+                # Меняем статус, чтобы не отправлять повторно
+                reg.status = 'no_show_survey_sent'
+            except Exception as e:
+                logger.error(f"Failed to send no-show survey to user {reg.user_id}: {e}")
+        
+        await session.commit()

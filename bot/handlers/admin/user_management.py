@@ -13,6 +13,7 @@ from bot.states.states import (
     ManualWaiver,
     UserSearch,
     BlockUser,
+    AdminAddUser,
 )
 from bot.keyboards import inline
 from bot.utils.text_messages import Text
@@ -498,3 +499,116 @@ async def admin_delete_waiver(callback: types.CallbackQuery, session: AsyncSessi
         await admin_manage_user_waivers_menu(callback, session)
     except Exception:
         await callback.message.answer("Возврат в меню...", reply_markup=inline.get_back_to_admin_panel_keyboard())
+        
+        
+        
+        
+@router.callback_query(F.data == "admin_add_user_start", RoleFilter('admin'))
+async def add_user_start(callback: types.CallbackQuery, state: FSMContext):
+    """Начало FSM добавления пользователя."""
+    await state.clear()
+    await state.set_state(AdminAddUser.awaiting_phone)
+    await callback.message.edit_text("<b>Шаг 1/9:</b> Введите номер телефона нового пользователя в формате <code>+7...</code>")
+    await callback.answer()
+
+@router.message(AdminAddUser.awaiting_phone)
+async def add_user_phone(message: types.Message, state: FSMContext, session: AsyncSession):
+    phone_number = message.text
+    if not phone_number.startswith('+') or not phone_number[1:].isdigit() or len(phone_number) < 11:
+        await message.answer("❌ Неверный формат номера. Введите в формате <code>+7...</code>")
+        return
+
+    existing_user = await user_requests.get_user_by_phone(session, phone_number)
+    if existing_user:
+        await message.answer(f"❌ Пользователь с номером {phone_number} уже существует: {existing_user.full_name}.")
+        await state.clear()
+        return
+
+    await state.update_data(
+        phone_number=phone_number,
+        telegram_id=0, # Временный ID, т.к. пользователь еще не запускал бота
+        telegram_username=f"manual_{phone_number}"
+    )
+    await state.set_state(AdminAddUser.awaiting_full_name)
+    await message.answer("<b>Шаг 2/9:</b> Введите ФИО пользователя.")
+
+# Далее мы можем использовать почти те же шаги, что и при обычной регистрации.
+# Просто привязываем их к нашему новому состоянию AdminAddUser.
+# Этот код можно добавить в конец файла user_management.py
+
+@router.message(AdminAddUser.awaiting_full_name)
+async def add_user_full_name(message: types.Message, state: FSMContext):
+    await state.update_data(full_name=message.text.strip())
+    await state.set_state(AdminAddUser.awaiting_category)
+    await message.answer("<b>Шаг 3/9:</b> Выберите категорию пользователя.", reply_markup=inline.get_category_keyboard())
+
+@router.callback_query(AdminAddUser.awaiting_category, F.data.startswith('category_'))
+async def add_user_category(callback: types.CallbackQuery, state: FSMContext):
+    category = callback.data.split('_', 1)[1]
+    await state.update_data(category=category)
+    await callback.message.edit_text("<b>Шаг 4/9:</b> Выберите ВУЗ.", reply_markup=inline.get_university_keyboard())
+    await state.set_state(AdminAddUser.awaiting_university)
+    await callback.answer()
+
+@router.callback_query(AdminAddUser.awaiting_university, F.data.startswith('university_'))
+async def add_user_university(callback: types.CallbackQuery, state: FSMContext):
+    choice = callback.data.split('_', 1)[1]
+    if choice == 'mifi':
+        await state.update_data(university="НИЯУ МИФИ")
+        await callback.message.edit_text("<b>Шаг 5/9:</b> Выберите факультет.", reply_markup=inline.get_faculties_keyboard())
+        await state.set_state(AdminAddUser.awaiting_faculty)
+    else:
+        await callback.message.edit_text("<b>Шаг 5/9:</b> Введите название ВУЗа.")
+        await state.set_state(AdminAddUser.awaiting_custom_university_name)
+    await callback.answer()
+
+@router.message(AdminAddUser.awaiting_custom_university_name)
+async def add_user_custom_university(message: types.Message, state: FSMContext):
+    await state.update_data(university=message.text)
+    await message.answer("<b>Шаг 6/9:</b> Введите факультет.")
+    await state.set_state(AdminAddUser.awaiting_custom_faculty_name)
+
+@router.callback_query(AdminAddUser.awaiting_faculty, F.data.startswith('faculty_'))
+async def add_user_faculty(callback: types.CallbackQuery, state: FSMContext):
+    faculty = callback.data.split('_', 1)[1]
+    if faculty == 'Other':
+        await callback.message.edit_text("<b>Шаг 6/9:</b> Введите название факультета.")
+        await state.set_state(AdminAddUser.awaiting_custom_faculty_name)
+    else:
+        await state.update_data(faculty=faculty)
+        await callback.message.edit_text("<b>Шаг 7/9:</b> Введите номер группы (или 'нет').")
+        await state.set_state(AdminAddUser.awaiting_study_group)
+    await callback.answer()
+    
+@router.message(AdminAddUser.awaiting_custom_faculty_name)
+async def add_user_custom_faculty(message: types.Message, state: FSMContext):
+    await state.update_data(faculty=message.text)
+    await message.answer("<b>Шаг 7/9:</b> Введите номер группы (или 'нет').")
+    await state.set_state(AdminAddUser.awaiting_study_group)
+
+@router.message(AdminAddUser.awaiting_study_group)
+async def add_user_study_group(message: types.Message, state: FSMContext):
+    await state.update_data(study_group=message.text)
+    await state.set_state(AdminAddUser.awaiting_gender)
+    await message.answer("<b>Шаг 8/9:</b> Укажите пол.", reply_markup=inline.get_gender_inline_keyboard())
+
+@router.callback_query(AdminAddUser.awaiting_gender, F.data.startswith("gender_"))
+async def add_user_gender(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Последний шаг - сохранение."""
+    gender = callback.data.split('_', 1)[1]
+    await state.update_data(gender=gender, consent_given=True) # Согласие подразумевается, т.к. добавляет админ
+    
+    user_data = await state.get_data()
+    # Заполняем недостающие поля по умолчанию
+    user_data.setdefault('blood_type', 'Не указан')
+    user_data.setdefault('rh_factor', '?')
+
+    await user_requests.add_user(session, user_data)
+    await session.commit()
+    await state.clear()
+    
+    await callback.message.edit_text(
+        f"✅ Пользователь <b>{user_data['full_name']}</b> успешно добавлен в базу данных.",
+        reply_markup=inline.get_user_management_main_keyboard()
+    )
+    await callback.answer("Пользователь добавлен!", show_alert=True)

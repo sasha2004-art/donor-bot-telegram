@@ -1,9 +1,6 @@
-вот мой проект:
-
 ==================== СТРУКТУРА ПРОЕКТА ====================
 
 .
-├── 1.txt
 ├── Dockerfile
 ├── README.md
 ├── bot
@@ -55,8 +52,10 @@
 │       └── text_messages.py
 ├── collector.py
 ├── docker-compose.yml
-├── file.txt
+├── logs
+│   └── pytest-logs.txt
 ├── main.py
+├── output.log
 ├── populate_db.py
 ├── pytest.ini
 ├── requirements.txt
@@ -82,7 +81,7 @@
 │   └── index.html
 └── финальна версия.7z
 
-12 directories, 67 files
+13 directories, 67 files
 
 
 ==================== СОДЕРЖИМОЕ ФАЙЛОВ ====================
@@ -192,8 +191,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 CMD ["python", "main.py"]
 
 --- КОНЕЦ ФАЙЛА: Dockerfile ---
-
---- НЕ УДАЛОСЬ ПРОЧИТАТЬ ФАЙЛ: file.txt | Ошибка: 'utf-8' codec can't decode byte 0xff in position 0: invalid start byte ---
 
 --- НАЧАЛО ФАЙЛА: main.py ---
 
@@ -759,6 +756,7 @@ if __name__ == "__main__":
 
 [pytest]
 asyncio_mode = auto
+log_file = logs/pytest-logs.txt
 
 --- КОНЕЦ ФАЙЛА: pytest.ini ---
 
@@ -787,7 +785,6 @@ asyncio_mode = auto
 *   **Aiogram 3**: Ядро телеграм-бота, отвечает за обработку обновлений, FSM (машину состояний) и взаимодействие с Telegram Bot API.
 *   **SQLAlchemy 2.0 (async)**: Асинхронная работа с базой данных. В качестве драйвера используется `asyncpg`.
 *   **PostgreSQL**: Основная база данных для хранения всей информации о пользователях, мероприятиях, донациях и т.д.
-*   **Redis**: Используется для хранения состояний FSM (`RedisStorage`), что обеспечивает их сохранность между перезапусками бота.
 *   **Alembic**: Система миграций для управления изменениями схемы базы данных.
 *   **Docker / Docker Compose**: Контейнеризация и оркестрация всех сервисов проекта (бот, БД, Redis).
 
@@ -940,6 +937,28 @@ matplotlib==3.8.4
 pandas==2.2.2
 
 --- КОНЕЦ ФАЙЛА: requirements.txt ---
+
+--- НАЧАЛО ФАЙЛА: .pytest_cache/.gitignore ---
+
+# Created by pytest automatically.
+*
+
+
+--- КОНЕЦ ФАЙЛА: .pytest_cache/.gitignore ---
+
+--- НАЧАЛО ФАЙЛА: .pytest_cache/README.md ---
+
+# pytest cache directory #
+
+This directory contains data from the pytest's cache plugin,
+which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
+
+**Do not** commit this to version control.
+
+See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+
+
+--- КОНЕЦ ФАЙЛА: .pytest_cache/README.md ---
 
 --- НАЧАЛО ФАЙЛА: bot/config_reader.py ---
 
@@ -1732,6 +1751,9 @@ class User(Base):
     role: Mapped[str] = mapped_column(String(50), default='student', index=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    category: Mapped[str] = mapped_column(String(50), default='student', server_default='student')
+    is_dkm_donor: Mapped[bool] = mapped_column(Boolean, default=False, server_default='f')
+    consent_given: Mapped[bool] = mapped_column(Boolean, default=False, server_default='f')
 
     donations: Mapped[List["Donation"]] = relationship(back_populates="user")
     registrations: Mapped[List["EventRegistration"]] = relationship(back_populates="user", cascade="all, delete-orphan")
@@ -1747,6 +1769,8 @@ class Event(Base):
     name: Mapped[str] = mapped_column(String(255))
     event_datetime: Mapped[datetime.datetime] = mapped_column(DateTime)
     location: Mapped[str] = mapped_column(Text)
+    blood_center_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
     donation_type: Mapped[str] = mapped_column(String(50))
@@ -1922,13 +1946,18 @@ async def update_user_profile(session: AsyncSession, user_id: int, data: dict):
     await session.commit()
 
 async def get_user_profile_info(session: AsyncSession, user_id: int) -> dict | None:
-    # Получить инфо профиля пользователя
     user = await session.get(User, user_id)
     if not user:
         return None
 
-    stmt_last_donation = select(Donation.donation_date, Donation.donation_type).where(Donation.user_id == user.id).order_by(Donation.donation_date.desc()).limit(1)
-    last_donation = (await session.execute(stmt_last_donation)).first()
+    stmt_last_donation = (
+        select(Donation)
+        .options(joinedload(Donation.event))
+        .where(Donation.user_id == user.id)
+        .order_by(Donation.donation_date.desc())
+        .limit(1)
+    )
+    last_donation_obj = (await session.execute(stmt_last_donation)).scalar_one_or_none()
 
     today = datetime.date.today()
     stmt_waiver = select(MedicalWaiver.end_date).where(MedicalWaiver.user_id == user.id, MedicalWaiver.end_date >= today).order_by(MedicalWaiver.end_date.desc()).limit(1)
@@ -1937,8 +1966,10 @@ async def get_user_profile_info(session: AsyncSession, user_id: int) -> dict | N
     next_possible_donation = today
     if active_waiver_end_date:
         next_possible_donation = active_waiver_end_date + datetime.timedelta(days=1)
-    elif last_donation:
-        last_date, last_type = last_donation
+    
+    if last_donation_obj:
+        last_date = last_donation_obj.donation_date
+        last_type = last_donation_obj.donation_type
         if last_type == 'whole_blood':
             interval = 90 if user.gender == 'female' else 60
             possible_date = last_date + datetime.timedelta(days=interval)
@@ -1952,7 +1983,8 @@ async def get_user_profile_info(session: AsyncSession, user_id: int) -> dict | N
     return {
         "user": user,
         "total_donations": total_donations,
-        "next_possible_donation": next_possible_donation
+        "next_possible_donation": next_possible_donation,
+        "last_donation": last_donation_obj 
     }
 
 async def get_user_donation_history(session: AsyncSession, user_id: int) -> list[Donation]:
@@ -2186,10 +2218,9 @@ from aiogram import Router, F, types
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import any_state
-from aiogram.types import ReplyKeyboardRemove, ReplyKeyboardMarkup
+from aiogram.types import ReplyKeyboardRemove
 from sqlalchemy.ext.asyncio import AsyncSession
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from bot.db import user_requests
 from bot.states.states import Registration
@@ -2207,7 +2238,7 @@ ROLE_MENU_MAP = {
 router = Router()
 
 # =============================================================================
-# --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ОТПРАВКИ/РЕДАКТИРОВАНИЯ МЕНЮ ---
+# --- УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ОТПРАВКИ/РЕДАКТИРОВАНИЯ МЕНЮ ---
 # =============================================================================
 
 async def send_or_edit_main_menu(
@@ -2234,7 +2265,6 @@ async def send_or_edit_main_menu(
         await message_to_handle.answer(Text.USER_BLOCKED_MESSAGE, reply_markup=ReplyKeyboardRemove())
         return
 
-    # 1. Определяем текст приветствия
     if welcome_text:
         greeting = welcome_text
     elif force_role == 'student':
@@ -2242,70 +2272,53 @@ async def send_or_edit_main_menu(
     else:
         greeting = Text.WELCOME_BACK.format(name=user.full_name)
 
-    # 2. Собираем единый текст для сообщения
     combined_text = f"{greeting}\n\n{Text.MAIN_MENU_PROMPT}"
-
-    # 3. Определяем, какую inline-клавиатуру показать
     effective_role = force_role if force_role else user.role
     menu_func = ROLE_MENU_MAP.get(effective_role, inline.get_student_main_menu)
     inline_kbd = menu_func(viewer_role=user.role)
 
-    # 4. Отправляем или редактируем сообщение
     if isinstance(event, types.Message):
-        # Для новых сообщений (/start, "Домой") - отправляем одно новое сообщение с меню
         await message_to_handle.answer(
             combined_text,
             reply_markup=inline_kbd,
             parse_mode="HTML"
         )
     elif isinstance(event, types.CallbackQuery):
-        # Для колбэков ("Назад в меню") - редактируем существующее
         try:
             await message_to_handle.edit_text(combined_text, reply_markup=inline_kbd, parse_mode="HTML")
         except TelegramBadRequest as e:
             if "message is not modified" in str(e):
-                await event.answer() # Игнорируем ошибку, если сообщение не изменилось
+                await event.answer()
             else:
-                # Если отредактировать не удалось (например, сообщение слишком старое), удаляем его и отправляем новое
                 await message_to_handle.delete()
                 await message_to_handle.answer(combined_text, reply_markup=inline_kbd, parse_mode="HTML")
         await event.answer()
 
-# --- ИСПРАВЛЕННЫЕ ХЕНДЛЕРЫ ---
+
 @router.message(F.text == "🏠 Домой")
 @router.message(CommandStart())
 async def cmd_start_or_home(message: types.Message, session: AsyncSession):
-    """
-    Устанавливает Reply-клавиатуру и показывает главное меню.
-    Теперь это делается более "незаметно".
-    """
-    # Сначала устанавливаем постоянную клавиатуру с кнопкой "Домой"
-    # await message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
-    # И сразу же отправляем основное меню с inline-кнопками
     await send_or_edit_main_menu(message, session)
 
 
 @router.callback_query(F.data == "back_to_main_menu")
 async def handle_back_to_main_menu(callback: types.CallbackQuery, session: AsyncSession):
-    """Обрабатывает все стандартные кнопки 'Назад в меню'."""
     await send_or_edit_main_menu(callback, session)
 
 
 @router.callback_query(F.data == "switch_to_donor_view")
 async def handle_switch_to_donor_view(callback: types.CallbackQuery, session: AsyncSession):
-    """Обрабатывает переход в режим донора, принудительно показывая меню студента."""
     await send_or_edit_main_menu(callback, session, force_role='student')
 
+
 # =============================================================================
-# --- ЛОГИКА РЕГИСТРАЦИИ ---
+# --- ЛОГИКА РЕГИСТРАЦИИ (ИСПРАВЛЕННАЯ ВЕРСИЯ) ---
 # =============================================================================
 
 @router.message(F.contact)
 async def handle_contact(message: types.Message, session: AsyncSession, state: FSMContext):
     user = await user_requests.get_user_by_tg_id(session, message.from_user.id)
     if user:
-        # Устанавливаем клавиатуру и показываем меню
-        # await message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
         await send_or_edit_main_menu(message, session, welcome_text=Text.ALREADY_REGISTERED.format(name=user.full_name))
         return
         
@@ -2321,8 +2334,6 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
             return
             
         await user_requests.update_user_credentials(session, user_by_phone.id, message.from_user.id, message.from_user.username)
-        # Устанавливаем клавиатуру и показываем меню
-        # await message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
         await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_phone.full_name))
     else:
         await state.update_data(
@@ -2337,9 +2348,34 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 
 @router.message(Registration.awaiting_full_name)
 async def process_full_name(message: types.Message, state: FSMContext):
-    await state.update_data(full_name=message.text)
-    await message.answer(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
+    full_name = message.text.strip()
+    
+    allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
+    if not all(c.lower() in allowed_chars or c.isspace() for c in full_name):
+        await message.answer(Text.FIO_VALIDATION_ERROR)
+        return
+        
+    name_parts = full_name.split()
+    if len(name_parts) < 2:
+        await message.answer("Пожалуйста, введите как минимум Фамилию и Имя.")
+        return
+    
+    corrected_name = " ".join([part.strip().capitalize() for part in name_parts])
+    await state.update_data(full_name=corrected_name)
+    
+    await message.answer(Text.GET_CATEGORY, reply_markup=inline.get_category_keyboard())
+    await state.set_state(Registration.awaiting_category)
+
+
+# --- НОВЫЙ ХЕНДЛЕР: Обработка категории ---
+@router.callback_query(Registration.awaiting_category, F.data.startswith('category_'))
+async def process_category(callback: types.CallbackQuery, state: FSMContext):
+    category = callback.data.split('_', 1)[1]
+    await state.update_data(category=category)
+    
+    await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
     await state.set_state(Registration.awaiting_university)
+    await callback.answer()
 
 
 @router.callback_query(Registration.awaiting_university, F.data.startswith('university_'))
@@ -2413,13 +2449,26 @@ async def process_rh_factor(callback: types.CallbackQuery, state: FSMContext):
 
 
 @router.callback_query(Registration.awaiting_gender, F.data.startswith("gender_"))
-async def process_gender(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+async def process_gender(callback: types.CallbackQuery, state: FSMContext):
     gender = callback.data.split('_', 1)[1]
     gender_text = "Мужской" if gender == "male" else "Женский"
     
     await callback.message.edit_text(Text.GENDER_SELECTED.format(gender=gender_text))
-    
     await state.update_data(gender=gender)
+    
+    await callback.message.answer(
+        Text.CONSENT_TEXT, 
+        reply_markup=inline.get_consent_keyboard(),
+        parse_mode="HTML"
+    )
+    await state.set_state(Registration.awaiting_consent)
+    await callback.answer()
+
+
+# --- НОВЫЙ ХЕНДЛЕР: Обработка согласия и завершение регистрации ---
+@router.callback_query(Registration.awaiting_consent, F.data == "consent_given")
+async def process_consent(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    await state.update_data(consent_given=True)
     user_data = await state.get_data()
     user_data.setdefault('faculty', 'Не указан')
     user_data.setdefault('study_group', 'Не указана')
@@ -2428,9 +2477,13 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext, sessi
     await session.commit()
     await state.clear()
     
-    # После регистрации устанавливаем клавиатуру и показываем меню
-    # await callback.message.answer("Меню обновлено.", reply_markup=reply.get_home_keyboard())
-    await send_or_edit_main_menu(callback.message, session, welcome_text=Text.REGISTRATION_COMPLETE.format(name=new_user.full_name))
+    await callback.message.delete()
+    
+    await send_or_edit_main_menu(
+        callback.message, 
+        session, 
+        welcome_text=Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)
+    )
     await callback.answer()
 
 
@@ -2455,7 +2508,6 @@ async def cancel_fsm_handler(event: types.Message | types.CallbackQuery, state: 
     else:
         await event.answer(Text.ACTION_CANCELLED)
     
-    # После отмены тоже показываем единое меню
     await send_or_edit_main_menu(message_to_use, session)
     if isinstance(event, types.CallbackQuery):
         await event.answer()
@@ -2478,6 +2530,7 @@ async def secret_admin_panel(message: types.Message, session: AsyncSession):
 
 @router.callback_query(F.data == "switch_to_volunteer_view", RoleFilter('admin'))
 async def switch_to_volunteer_view_handler(callback: types.CallbackQuery):
+    from aiogram.utils.keyboard import InlineKeyboardBuilder
     builder = InlineKeyboardBuilder()
     builder.row(types.InlineKeyboardButton(text="📷 Подтвердить донацию (QR)", callback_data="confirm_donation_qr"))
     builder.row(types.InlineKeyboardButton(text="↩️ Назад в меню донора", callback_data="switch_to_donor_view"))
@@ -2644,7 +2697,18 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
     if not profile_data:
         await callback.answer(Text.PROFILE_LOAD_ERROR, show_alert=True)
         return
+    
     user_obj = profile_data['user']
+    last_donation = profile_data['last_donation']
+    
+    if last_donation:
+        blood_center = last_donation.event.blood_center_name if last_donation.event else "Не указан"
+        last_donation_info = f"{last_donation.donation_date.strftime('%d.%m.%Y')} ({Text.escape_html(blood_center)})"
+    else:
+        last_donation_info = "Еще не было"
+
+    dkm_status = "Да" if user_obj.is_dkm_donor else "Нет"
+
     text = Text.PROFILE_DATA_TEMPLATE.format(
         full_name=Text.escape_html(user_obj.full_name),
         university=Text.escape_html(user_obj.university),
@@ -2654,8 +2718,11 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
         rh_factor=Text.escape_html(user_obj.rh_factor or '?'),
         points=user_obj.points,
         total_donations=profile_data['total_donations'],
-        next_date=profile_data['next_possible_donation'].strftime('%d.%m.%Y')
+        next_date=profile_data['next_possible_donation'].strftime('%d.%m.%Y'),
+        last_donation_info=last_donation_info,
+        dkm_status=dkm_status
     )
+    
     await callback.message.edit_text(text, reply_markup=inline.get_back_to_profile_menu_keyboard(), parse_mode="HTML")
     await callback.answer()
 
@@ -3049,6 +3116,7 @@ async def show_info_menu(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+
 @router.callback_query(F.data.startswith("info_"))
 async def show_info_text(callback: types.CallbackQuery):
     section = callback.data.split('_', 1)[1]
@@ -3056,7 +3124,9 @@ async def show_info_text(callback: types.CallbackQuery):
         "prepare": Text.INFO_PREPARE,
         "contraindications": Text.INFO_CONTRAINDICATIONS,
         "after": Text.INFO_AFTER,
-        "contacts": Text.INFO_CONTACTS
+        "contacts": Text.INFO_CONTACTS,
+        "dkm": Text.INFO_DKM,
+        "mifi_process": Text.INFO_MIFI_PROCESS
     }
     text_to_show = text_map.get(section, Text.INFO_SECTION_NOT_FOUND)
     await callback.message.edit_text(text_to_show, reply_markup=inline.get_back_to_info_menu_keyboard(), parse_mode="HTML", disable_web_page_preview=True)
@@ -5139,7 +5209,21 @@ def get_back_to_main_menu_keyboard():
     builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
     return builder.as_markup()
 
-# --- КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ ЗДЕСЬ ---
+def get_category_keyboard():
+    """Клавиатура для выбора категории пользователя."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Студент", callback_data="category_student"))
+    builder.row(InlineKeyboardButton(text="Сотрудник", callback_data="category_employee"))
+    builder.row(InlineKeyboardButton(text="Внешний донор", callback_data="category_external"))
+    return builder.as_markup()
+
+def get_consent_keyboard():
+    """Клавиатура для подтверждения согласия на обработку ПДн."""
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="✅ Принимаю условия", callback_data="consent_given"))
+    return builder.as_markup()
+
+
 def get_student_main_menu(viewer_role: str = 'student'):
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📅 Записаться на донацию", callback_data="register_donation"))
@@ -5148,15 +5232,12 @@ def get_student_main_menu(viewer_role: str = 'student'):
     builder.row(InlineKeyboardButton(text="ℹ️ Полезная информация", callback_data="info"))
     builder.row(InlineKeyboardButton(text="⚕️ Мои медотводы", callback_data="my_waivers"))
     
-    # Эта логика теперь корректно обрабатывает все роли
     if viewer_role == 'volunteer':
-        # Волонтер видит кнопку для возврата в свое меню
         builder.row(InlineKeyboardButton(
             text="⭐ Вернуться в меню волонтера",
             callback_data="volunteer_panel"
         ))
     elif viewer_role in ['admin', 'main_admin']:
-        # Админ видит ДВЕ кнопки: для перехода в режим волонтера и для возврата в админ-панель
         builder.row(InlineKeyboardButton(
             text="⭐ Перейти в режим волонтера",
             callback_data="switch_to_volunteer_view"
@@ -5183,24 +5264,20 @@ def get_main_admin_main_menu(viewer_role: str = 'main_admin'):
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="⚙️ Открыть панель администратора", callback_data="admin_panel"))
     return builder.as_markup()
-# --- КОНЕЦ ИСПРАВЛЕНИЙ В ЭТОЙ ЧАСТИ ---
 
-# --- ИЗМЕНЕНИЕ: Новая клавиатура для выбора ВУЗа ---
 def get_university_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="НИЯУ МИФИ", callback_data="university_mifi"))
     builder.row(InlineKeyboardButton(text="Другой вуз", callback_data="university_other"))
     return builder.as_markup()
-# --- КОНЕЦ ИЗМЕНЕНИЯ ---
+
 
 def get_faculties_keyboard():
     faculties = ["ИИКС", "ФИБС", "ИнЯз", "ИФТЭБ", "БМТ", "ИФИБ"]
     builder = InlineKeyboardBuilder()
     for faculty in faculties:
         builder.row(InlineKeyboardButton(text=faculty, callback_data=f"faculty_{faculty}"))
-    # --- ИЗМЕНЕНИЕ: Добавляем data для колбэка ---
     builder.row(InlineKeyboardButton(text="Другой/Не из списка", callback_data="faculty_Other"))
-    # --- КОНЕЦ ИЗМЕНЕНИЯ ---
     return builder.as_markup()
 
 def get_blood_type_keyboard():
@@ -5239,6 +5316,8 @@ def get_info_menu_keyboard():
     builder.row(InlineKeyboardButton(text="Как подготовиться?", callback_data="info_prepare"))
     builder.row(InlineKeyboardButton(text="Противопоказания", callback_data="info_contraindications"))
     builder.row(InlineKeyboardButton(text="Что делать после?", callback_data="info_after"))
+    builder.row(InlineKeyboardButton(text="🩸 О донорстве костного мозга (ДКМ)", callback_data="info_dkm"))
+    builder.row(InlineKeyboardButton(text="🏥 О донациях в МИФИ", callback_data="info_mifi_process"))
     builder.row(InlineKeyboardButton(text="Связаться с организаторами", callback_data="info_contacts"))
     builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
     return builder.as_markup()
@@ -5816,6 +5895,8 @@ from aiogram.fsm.state import State, StatesGroup
 
 class Registration(StatesGroup):
     awaiting_full_name = State()
+    awaiting_category = State()
+    awaiting_consent = State()
     awaiting_university = State()
     awaiting_custom_university_name = State()
     awaiting_faculty = State()
@@ -6378,10 +6459,49 @@ class Text:
         "Ваша помощь очень важна!"
     )
 
+    PROFILE_DATA_TEMPLATE = (
+        "📊 <b>Ваши данные</b>\n\n"
+        "👤 <b>ФИО:</b> {full_name}\n"
+        "🎓 <b>Университет:</b> {university}\n"
+        "🏛️ <b>Факультет:</b> {faculty}, <b>Группа:</b> {study_group}\n"
+        "🩸 <b>Группа крови:</b> {blood_type} Rh{rh_factor}\n"
+        "⭐ <b>Баллы:</b> {points}\n"
+        "💉 <b>Всего донаций:</b> {total_donations}\n"
+        "🗓️ <b>Следующая донация возможна с:</b> {next_date}\n"
+        "--- --- ---\n"
+        "<b>Последняя донация:</b> {last_donation_info}\n"
+        "<b>Донор костного мозга (ДКМ):</b> {dkm_status}"
+    )
 
-    # --- НОВЫЕ ТЕКСТЫ ---
+    INFO_DKM = (
+        "<b>🩸 О донорстве костного мозга (ДКМ)</b>\n\n"
+        "<b>Почему это важно?</b>\n"
+        "Трансплантация костного мозга — это единственный шанс на жизнь для многих людей с раком крови. Ваши стволовые клетки могут спасти чью-то жизнь.\n\n"
+        "<b>Как вступить в регистр?</b>\n"
+        "На каждом Дне Донора в МИФИ вы можете сдать дополнительную пробирку крови (4-9 мл), чтобы ваши данные внесли в Федеральный регистр доноров костного мозга. Это просто, быстро и безопасно.\n\n"
+        "<b>Что происходит дальше?</b>\n"
+        "Если ваши клетки совпадут с клетками нуждающегося пациента, с вами свяжутся. Сама донация похожа на сдачу компонентов крови и абсолютно безопасна для вас."
+    )
 
-    # --- Общие ---
+    INFO_MIFI_PROCESS = (
+        "<b>🏥 Как проходят Дни Донора в МИФИ</b>\n\n"
+        "<b>1. Регистрация:</b> Заранее запишитесь на удобную дату через этого бота.\n"
+        "<b>2. Подготовка:</b> Соблюдайте диету и рекомендации перед сдачей крови.\n"
+        "<b>3. В день акции:</b> Приходите в назначенное время с паспортом. Волонтеры вас встретят и проводят.\n"
+        "<b>4. Осмотр:</b> Вы пройдете небольшой осмотр у врача из Центра Крови.\n"
+        "<b>5. Донация:</b> Сама процедура сдачи крови занимает 10-15 минут.\n"
+        "<b>6. Отдых:</b> После донации отдохните, выпейте сладкий чай с печеньем.\n"
+        "<b>7. Баллы и мерч:</b> Не забудьте отсканировать QR-код у волонтера, чтобы получить баллы, которые можно обменять на мерч!\n\n"
+        "Дата ближайшего Дня Донора будет анонсирована в рассылке."
+    )
+
+    CONSENT_TEXT = (
+        "<b>Согласие на обработку персональных данных</b>\n\n"
+        "Нажимая кнопку «Принимаю условия», вы даете свое согласие на обработку следующих персональных данных: ФИО, номер телефона, telegram-username, данные о донациях.\n\n"
+        "Цели обработки: ведение базы доноров, информирование о мероприятиях и новостях донорского движения НИЯУ МИФИ, ведение статистики.\n\n"
+        "Ваши данные не будут переданы третьим лицам, за исключением случаев, предусмотренных законодательством."
+    )
+
     WELCOME_BACK = "✅ С возвращением, {name}!"
     MAIN_MENU_PROMPT = "Чем могу помочь?"
     USER_BLOCKED_MESSAGE = "❌ К сожалению, вы были заблокированы."
@@ -6394,32 +6514,18 @@ class Text:
     UNKNOWN_COMMAND = "Я не понимаю эту команду. Пожалуйста, используйте кнопки меню для навигации."
     ERROR_GENERIC_ALERT = "Произошла ошибка. Попробуйте снова."
     INFO_SECTION_NOT_FOUND = "Раздел не найден."
-
-    # --- Регистрация FSM ---
+    GET_CATEGORY = "Укажите вашу категорию:"
+    FIO_VALIDATION_ERROR = "❌ ФИО не должно содержать цифр или спецсимволов. Пожалуйста, введите корректные данные."
     FACULTY_SELECTED = "Выбран факультет: {faculty}"
     BLOOD_TYPE_SELECTED = "Группа крови: {blood_type}"
     RH_FACTOR_SELECTED = "Резус-фактор: {rh_factor}"
     GENDER_SELECTED = "Пол: {gender}"
     DATE_FORMAT_ERROR = "❌ Неверный формат даты. Введите <b>ДД.ММ.ГГГГ</b>."
-
-    # --- Профиль студента ---
     PROFILE_MENU_HEADER = "👤 <b>Мой профиль</b>\n\nВыберите, что вас интересует:"
     PROFILE_LOAD_ERROR = "Не удалось загрузить профиль."
-    PROFILE_DATA_TEMPLATE = (
-        "📊 <b>Ваши данные</b>\n\n"
-        "👤 <b>ФИО:</b> {full_name}\n"
-        "🎓 <b>Университет:</b> {university}\n"
-        "🏛️ <b>Факультет:</b> {faculty}, <b>Группа:</b> {study_group}\n"
-        "🩸 <b>Группа крови:</b> {blood_type} Rh{rh_factor}\n"
-        "⭐ <b>Баллы:</b> {points}\n"
-        "💉 <b>Всего донаций:</b> {total_donations}\n"
-        "🗓️ <b>Следующая донация возможна с:</b> {next_date}"
-    )
     NO_DONATION_HISTORY = "У вас еще нет записей о донациях."
     DONATION_HISTORY_HEADER = "🩸 <b>Ваша история донаций:</b>\n\n"
     DONATION_HISTORY_ITEM = "▪️ {date}: {type}, <b>+{points} баллов</b>\n"
-
-    # --- Мероприятия (Студент) ---
     NO_ACTIVE_EVENTS = "Активных мероприятий для записи сейчас нет."
     CHOOSE_EVENT_TO_REGISTER = "Выберите мероприятие для записи:"
     ALREADY_REGISTERED_FOR_EVENT = (
@@ -6434,8 +6540,6 @@ class Text:
     REGISTRATION_FAILED = "❌ Запись невозможна.\nПричина: {reason}"
     REGISTRATION_CANCELLED_SUCCESS = "✅ Ваша регистрация на мероприятие была отменена."
     REGISTRATION_CANCELLED_FAIL = "Не удалось отменить регистрацию. Возможно, она уже была отменена."
-
-    # --- Магазин (Студент) ---
     MERCH_NO_ITEMS = "В магазине пока нет товаров."
     MERCH_ITEM_CAPTION = (
         "🛍️ <b>{item_name}</b>\n\n"
@@ -6456,8 +6560,6 @@ class Text:
     MERCH_ORDER_ITEM = "▪️ <b>{item_name}</b> (от {date})\n   Статус: <b>{status}</b>\n"
     MERCH_STATUS_MAP = {'pending_pickup': 'Ожидает выдачи', 'completed': 'Выдан'}
     MERCH_UPDATE_ERROR = "Не удалось обновить. Попробуйте войти в магазин заново."
-
-    # --- Медотводы (Студент) ---
     WAIVERS_MENU_HEADER = "⚕️ <b>Управление медицинскими отводами</b>\n"
     NO_ACTIVE_WAIVERS = "\n✅ У вас нет активных отводов. Вы можете спасать жизни! 💪"
     SYSTEM_WAIVERS_HEADER = "\n<b>Назначенные системой/администратором (нельзя отменить):</b>"
@@ -6474,16 +6576,10 @@ class Text:
     WAIVER_NOTHING_TO_CANCEL = "У вас нет отводов, которые можно отменить."
     WAIVER_CANCEL_SUCCESS = "✅ Ваш медотвод успешно отменен."
     WAIVER_CANCEL_FAIL = "❌ Не удалось отменить отвод."
-
-    # --- Информация ---
     INFO_MENU_HEADER = "ℹ️ <b>Полезная информация</b>\n\nВыберите интересующий вас раздел:"
-    
-    # --- QR-код ---
     QR_GENERATING = "Генерирую ваш QR-код..."
     QR_GENERAL_CAPTION = "Этот QR-код можно использовать для быстрой идентификации. Для подтверждения донации на мероприятии используйте QR-код из меню мероприятия."
     QR_EVENT_CAPTION = "Покажите этот QR-код волонтёру после донации для начисления баллов."
-
-    # --- Волонтер ---
     VOLUNTEER_MENU_HEADER = "⭐ <b>Меню волонтёра</b>"
     VOLUNTEER_SEND_QR_PROMPT = "Отправьте мне фотографию с QR-кодом донора."
     QR_READ_ERROR = "❌ QR-код не распознан или имеет неверный формат. Попробуйте снова."
@@ -6507,11 +6603,7 @@ class Text:
     )
     DONATION_CONFIRM_CRITICAL_ERROR = "Произошла критическая ошибка при подтверждении донации: {error}"
     VOLUNTEER_INVALID_INPUT_QR = "Пожалуйста, отправьте именно фотографию с QR-кодом."
-
-    # --- Админ: Общее ---
     ADMIN_PANEL_HEADER = "⚙️ Панель администратора"
-
-    # --- Админ: Мероприятия ---
     ADMIN_EVENTS_HEADER = "🗓️ Управление мероприятиями"
     EVENT_CREATE_STEP_1_NAME = "Шаг 1/9: Введите название мероприятия:"
     EVENT_CREATE_STEP_2_DATE = "Шаг 2/9: Введите дату и время мероприятия в формате <b>ДД.ММ.ГГГГ ЧЧ:ММ</b> (например, 25.12.2024 10:30):"
@@ -6524,9 +6616,6 @@ class Text:
     EVENT_CREATE_STEP_8_LIMIT = "Шаг 9/9: Введите лимит участников:"
     EVENT_LIMIT_NAN_ERROR = "❌ Лимит должен быть числом."
     EVENT_POINTS_NAN_ERROR = "❌ Введите целое число."
-    DATE_FORMAT_ERROR = "❌ Неверный формат. Введите дату и время в формате <b>ДД.ММ.ГГГГ ЧЧ:ММ</b>."
-    
-
     EVENT_CREATE_CONFIRMATION = (
         "✅ Все данные собраны. Пожалуйста, проверьте:\n\n"
         "▪️ Название: {name}\n"
@@ -6539,8 +6628,6 @@ class Text:
         "▪️ Лимит: {limit}\n\n"
         "Создать мероприятие и запустить рассылку?"
     )
-
-    
     EVENT_CREATING_IN_PROGRESS = "Принято. Создаю мероприятие..."
     EVENT_CREATE_SUCCESS = "✅ Мероприятие успешно создано!"
     MAILING_STARTED_NOTIFICATION = "⏳ Начинаю рассылку. Это может занять некоторое время..."
@@ -6577,7 +6664,6 @@ class Text:
     EVENT_CANCELLING_IN_PROGRESS = "⏳ Начинаю процесс отмены..."
     EVENT_CANCEL_NOTIFICATION_TEXT = "❗️ <b>Внимание, мероприятие отменено!</b>\n\nК сожалению, «<b>{event_name}</b>», запланированное на {datetime}, было отменено."
     EVENT_CANCEL_SUCCESS_REPORT = "✅ <b>Мероприятие «{event_name}» отменено.</b>\n\n<b>Результаты:</b>\n- Успешно отправлено: {success}\n- Ошибок: {fail}"
-    # --- Админ: Рассылки ---
     MAILING_STEP_1_TEXT_PROMPT = (
         "Вы начали создание рассылки.\n\n"
         "<b>Шаг 1/3:</b> Введите текст сообщения. Он будет подписью, если вы добавите фото/видео. "
@@ -6608,8 +6694,6 @@ class Text:
     MAILING_PREVIEW_TEXT_HEADER = "\n<b>✉️ Текст/подпись:</b>\n------------------------------------\n{text}\n------------------------------------"
     MAILING_EDIT_TEXT_PROMPT = "Введите новый текст сообщения для рассылки:"
     MAILING_CONFIRMED_AND_RUNNING = "✅ Рассылка запущена в фоновом режиме. Вы можете продолжать пользоваться ботом."
-    
-    # --- Админ: Мерч ---
     ADMIN_MERCH_HEADER = "🛍️ <b>Управление магазином</b>"
     MERCH_CREATE_STEP_1_PHOTO = "Отправьте фотографию для нового товара."
     MERCH_PHOTO_RECEIVED = "Фото получено. Введите название товара:"
@@ -6656,13 +6740,9 @@ class Text:
     ADMIN_ORDER_NOT_FOUND_OR_PROCESSED = "Заказ не найден или уже обработан."
     ADMIN_ORDER_COMPLETED_SUCCESS = "✅ Заказ №{order_id} помечен как выданный."
     USER_ORDER_COMPLETED_NOTIFICATION = "🎉 Ваш заказ «{item_name}» был выдан. Приятного пользования!"
-
-    # --- Админ: Система ---
     EXPORT_STARTED = "⏳ Начинаю сбор данных и создание архива... Это может занять некоторое время."
     EXPORT_SUCCESSFUL = "✅ Полный бэкап базы данных готов."
     EXPORT_FAILED = "❌ Произошла ошибка при создании бэкапа. Подробности в логах."
-    
-    # --- Админ: Пользователи ---
     ADMIN_USERS_HEADER = "👥 <b>Управление пользователями</b>"
     ADMIN_NO_USERS_IN_DB = "В базе данных пока нет пользователей."
     USERS_LIST_HEADER = "📜 <b>Список пользователей (Страница {page}/{total_pages})</b>\n\n"
@@ -6739,8 +6819,6 @@ class Text:
         "Ждем вас по адресу: {event_location}"
     )
     POST_DONATION_FEEDBACK = "Привет! Как ты себя чувствуешь?\n\nОцени, пожалуйста, организацию мероприятия 1/5"
-    
-    
     FEEDBACK_START = "👋 Привет! Спасибо за твою донацию вчера. Мы были бы очень признательны, если бы ты ответил(а) на несколько вопросов. Это поможет нам стать лучше!\n\nДля начала, как ты себя чувствуешь после донации? Оцени по шкале от 1 (очень плохо) до 5 (отлично)."
     FEEDBACK_WELL_BEING_BAD = "Нам жаль это слышать. Пожалуйста, напиши, что именно не так? (например, 'кружится голова', 'слабость'). Если тебе нужна помощь, обязательно свяжись с нами!"
     FEEDBACK_GET_ORGANIZATION_SCORE = "Понятно, спасибо! Теперь оцени, пожалуйста, организацию самого мероприятия по шкале от 1 (очень плохо) до 10 (отлично)."
@@ -6748,7 +6826,6 @@ class Text:
     FEEDBACK_GET_WHAT_DISLIKED = "Спасибо! А что можно было бы улучшить? Что не понравилось?"
     FEEDBACK_GET_OTHER_SUGGESTIONS = "Принято. И последний вопрос: есть ли у тебя какие-либо другие идеи или предложения?"
     FEEDBACK_FINISH = "🎉 Опрос завершён! Огромное спасибо за твою обратную связь. Она очень важна для нас!"
-
     FEEDBACK_ADMIN_HEADER = "📊 <b>Отзывы по мероприятию «{event_name}»</b>\n\n"
     FEEDBACK_ADMIN_NO_FEEDBACK = "По этому мероприятию пока нет отзывов."
     FEEDBACK_ADMIN_ITEM = (
@@ -6768,6 +6845,15 @@ class Text:
 
 
 --- КОНЕЦ ФАЙЛА: bot/utils/__init__.py ---
+
+--- НАЧАЛО ФАЙЛА: logs/pytest-logs.txt ---
+
+ERROR    main:main.py:95 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%2C%22username%22%3A%22test%22%7D&hash=125b98532e863d708dcf6141ea32692de0537a3a4a18cbe18b38e5abcdefghij'
+ERROR    main:main.py:95 Telegram WebApp data validation failed: Hash not found in auth data. Raw auth_data: 'user=%7B%22id%22%3A+123%7D&auth_date=1700000000'
+ERROR    main:main.py:95 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%7D&hash=40f05e5ab6663c9f1ef8c1ce079b8ae543366d3c47562462714dcd19790c2116&new_param=hacker'
+
+
+--- КОНЕЦ ФАЙЛА: logs/pytest-logs.txt ---
 
 --- НАЧАЛО ФАЙЛА: tests/conftest.py ---
 
@@ -8151,18 +8237,21 @@ class MockLocation:
         (
             "mifi_standard_faculty",
             [
+                ("callback", "category_student"),
                 ("callback", "university_mifi"), 
                 ("callback", "faculty_ИИКС"),
                 ("message", "Б20-505"),
                 ("callback", "bloodtype_A(II)"),
                 ("callback", "rhfactor_+"),
                 ("callback", "gender_male"),
+                ("callback", "consent_given"),
             ],
-            {"university": "НИЯУ МИФИ", "faculty": "ИИКС", "study_group": "Б20-505"}
+            {"category": "student", "university": "НИЯУ МИФИ", "faculty": "ИИКС", "study_group": "Б20-505"}
         ),
         (
             "mifi_custom_faculty",
             [
+                ("callback", "category_employee"),
                 ("callback", "university_mifi"),
                 ("callback", "faculty_Other"),
                 ("message", "Институт ЛаПлаз"),
@@ -8170,12 +8259,14 @@ class MockLocation:
                 ("callback", "bloodtype_O(I)"),
                 ("callback", "rhfactor_-"),
                 ("callback", "gender_female"),
+                ("callback", "consent_given"),
             ],
-            {"university": "НИЯУ МИФИ", "faculty": "Институт ЛаПлаз", "study_group": "Л2-101"}
+            {"category": "employee", "university": "НИЯУ МИФИ", "faculty": "Институт ЛаПлаз", "study_group": "Л2-101"}
         ),
         (
-            "other_university",
+            "other_university_external_donor",
             [
+                ("callback", "category_external"),
                 ("callback", "university_other"),
                 ("message", "МГУ"),
                 ("message", "ВМК"),
@@ -8183,14 +8274,15 @@ class MockLocation:
                 ("callback", "bloodtype_B(III)"),
                 ("callback", "rhfactor_+"),
                 ("callback", "gender_male"),
+                ("callback", "consent_given"),
             ],
-            {"university": "МГУ", "faculty": "ВМК", "study_group": "231"}
+            {"category": "external", "university": "МГУ", "faculty": "ВМК", "study_group": "231"}
         )
     ]
 )
 async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_data, session: AsyncSession):
     """
-    Тестирует различные сценарии прохождения регистрации FSM.
+    Тестирует различные сценарии прохождения регистрации FSM (ОБНОВЛЕННАЯ ВЕРСИЯ).
     """
     state = MockFSMContext()
     
@@ -8201,40 +8293,49 @@ async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_da
     
     fio_message = MockMessage("Тестовый Тест Тестович")
     await common_handlers.process_full_name(fio_message, state)
-    assert await state.get_state() == Registration.awaiting_university
+    assert await state.get_state() == Registration.awaiting_category
     
+
     for input_type, value in user_inputs:
+        current_state_before = await state.get_state()
+        
         if input_type == "callback":
             callback = MockCallbackQuery(data=value)
-            current_state = await state.get_state()
-            if current_state == Registration.awaiting_university:
+            
+            if current_state_before == Registration.awaiting_category:
+                await common_handlers.process_category(callback, state)
+            elif current_state_before == Registration.awaiting_university:
                 await common_handlers.process_university_choice(callback, state)
-            elif current_state == Registration.awaiting_faculty:
+            elif current_state_before == Registration.awaiting_faculty:
                 await common_handlers.process_faculty(callback, state)
-            elif current_state == Registration.awaiting_blood_type:
+            elif current_state_before == Registration.awaiting_blood_type:
                 await common_handlers.process_blood_type(callback, state)
-            elif current_state == Registration.awaiting_rh_factor:
+            elif current_state_before == Registration.awaiting_rh_factor:
                 await common_handlers.process_rh_factor(callback, state)
-            elif current_state == Registration.awaiting_gender:
-                await common_handlers.process_gender(callback, state, session)
+            elif current_state_before == Registration.awaiting_gender:
+                await common_handlers.process_gender(callback, state)
+            elif current_state_before == Registration.awaiting_consent:
+                await common_handlers.process_consent(callback, state, session)
         
         elif input_type == "message":
             message = MockMessage(text=value)
-            current_state = await state.get_state()
-            if current_state == Registration.awaiting_custom_university_name:
+            
+            if current_state_before == Registration.awaiting_custom_university_name:
                 await common_handlers.process_custom_university_name(message, state)
-            elif current_state == Registration.awaiting_custom_faculty_name:
+            elif current_state_before == Registration.awaiting_custom_faculty_name:
                 await common_handlers.process_custom_faculty_name(message, state)
-            elif current_state == Registration.awaiting_study_group:
+            elif current_state_before == Registration.awaiting_study_group:
                 await common_handlers.process_study_group(message, state)
                 
     assert await state.get_state() is None 
     
-    created_user = await session.get(User, 1) 
+    created_user = (await session.execute(select(User).where(User.telegram_id == 123))).scalar_one()
     assert created_user is not None
     assert created_user.university == expected_fsm_data["university"]
     assert created_user.faculty == expected_fsm_data["faculty"]
     assert created_user.study_group == expected_fsm_data["study_group"]
+    assert created_user.category == expected_fsm_data["category"]
+    assert created_user.consent_given is True
     assert created_user.full_name == "Тестовый Тест Тестович"
     assert created_user.telegram_username == "test_user_fsm"
 
@@ -9846,3 +9947,101 @@ async def test_volunteer_fsm_wrong_day(mocker, session, volunteer_user, donor_us
 
 
 --- КОНЕЦ ФАЙЛА: tests/__init__.py ---
+
+
+
+вот глобальное тз:
+Бизнес-задание для участников хакатона: разработка Telegram-бота для донорского движения НИЯУ МИФИ  
+
+Сокращения:
+ДД - День Донора НИЯУ МИФИ.
+ЦК - центр крови
+ДКМ - донор(-ы) костный мозг
+
+Цель проекта:  
+Создать рабочий прототип Telegram-бота Дня Донора НИЯУ МИФИ. Бот должен стать инструментом для упрощения регистрации на ДД и оперативного информирования доноров.  
+
+Аннотация: 
+«Дни донора НИЯУ МИФИ» проходят ежегодно на территории университета с 2013 года, сдавать кровь приходят как студенты, так и сотрудники. С 2024 года проект активно развивается, было установлено сотрудничество с новым центром крови, благодаря чему ДД теперь проходят два раза в семестр в два дня, каждая из акций по сдаче крови проходит совместно с одним из Центров крови (ЦК ФМБА, ЦК им. О.К. Гаврилова). Также на каждой акции по сдаче крови можно вступить в регистр ДКМ. Прийти на ДД могут студенты и сотрудники вуза, а также люди, которые не имеют пропуска в МИФИ (не МИФИсты, “внешние” доноры). На данный момент база доноров МИФИ составляет примерно 500 человек с потенциальным увеличением ежегодно на 100 человек.
+
+Функционал для пользователя (донора):
+При запуске бот должен кратко объяснять свою цель для пользователя-донора (не надо раскрывать функционал организатора). 
+
+Регистрация начинается с авторизации по номеру телефона. Если номер новый и не существует в базе доноров, пользователь вводит ФИО, важно обеспечить валидацию данных (корректность написания, без лишних символов, коррекция регистра, пустые значения, опечатки и т.д.). необходимо идентифицировать пользователя в зависимости от его “категории”: студент, сотрудник, внешний донор. Студентам необходимо указывать номер своей учебной группы.
+Если номер есть в базе, ФИО не запрашивается, но уточняется у пользователя. Пользователь обязан принять условия использования бота (единожды): дать согласие на обработку персональных данных и рассылки. Пример в приложении. 
+В боте отображаются данные пользователя: ФИО, количество донаций, дата и ЦК последней донации, вступил ли пользователь в регистр ДКМ (сдал пробирку крови на мероприятии), а также возможность увидеть полную историю донаций (даты и центры крови).   
+Также в боте размещается информация:  
+- О донорстве крови: требования к донорам, подготовка к донации за несколько дней, питание, абсолютные/временные противопоказания.  
+- О донорстве костного мозга: пояснение важности, процедуры вступления в регистр и процесс донации.  
+- О донациях в МИФИ: пошаговое описание процесса и дата ближайшего ДД.  
+Доп. материалы для бота можно посмотреть в приложении.
+
+Бот позволяет зарегистрироваться на ближайший ДД: выбрать дату и ЦК (каждой дате соответствует ЦК). Пользователь должен указать статус “студент/сотрудник” или “внешний донор”. Внешние доноры должны пройти дополнительную регистрацию по ссылке из ИТ-МИФИ (для каждого ДД она новая). Если зарегистрированный пользователь не явился, ему автоматически приходит опрос с причинами неявления/несдачи («медотвод» (по причине болезни), «личные причины», «не захотел»). 
+
+Через бота пользователи могут отправить вопросы организаторам.  
+
+Функционал для организатора:
+Организаторы могут:  
+- Редактировать данные доноров, добавлять новых (вручную по одному или списком), вносить данные по прошедшим ДД (выбор даты, ЦК, списка ФИО доноров, сдавших кровь и тех, кто сдал пробирку на вступление в регистр крови костного мозга, а также их “вид” - внешний/внутренний донор).  
+- Отвечать на вопросы пользователей.  
+- Делать рассылки по категориям (например, зарегистрированным на ближайшую дату ДД; люди, которые есть в базе, но не зарегистрировались на ближайшие даты ДД; те, кто зарегистрировались на первую дату ДД, но не пришли; тем, кто сдал пробирку крови для вступления в регистр ДКМ)  
+- Создавать новые мероприятия - ДД с датами и ЦК, которые им соответствуют.  
+- Менять легко информацию в информационных разделах ТГ-бота
+- Загружать документ в формате exel с статистикой по прошедшей акции ДД с ФИО, датой акции и ЦК.
+- Иметь возможность выгружать статистику по всем акциям и донорам в формате exel.
+- Увидеть статистику по каждой донорской акции: дата, ЦК, сколько было доноров и сколько регистраций.
+
+Ключевые требования:
+- Удобство: Понятная и простая навигация; минимум кнопок (но возможны раскрывающиеся кнопки). 
+- Гибкость: Возможность добавлять данные списком (для организаторов), перемещаться по разделам бота.  
+- Дополнительно: Приветствуются креативные решения.  
+
+
+> Участникам хакатона важно учесть: проект решает социально значимую задачу. Каждая функция бота — это шаг к спасению жизней. Удачи! 💪
+
+
+
+тебе надо сделать :
+Этап 3: Реализация базового функционала для организатора
+
+Цель — дать организаторам минимально необходимые инструменты для управления.
+
+    ➕ Ручное добавление донора:
+
+        Задача: Создать FSM для администратора, чтобы он мог вручную добавить нового пользователя.
+
+        Действия:
+
+            Создайте новое состояние AdminAddUser в bot/states/states.py.
+
+            В bot/handlers/admin/user_management.py реализуйте хендлеры для этого состояния, которые будут запрашивать ФИО, телефон, категорию и т.д.
+
+            Добавьте кнопку "Добавить пользователя" в get_user_management_main_keyboard.
+
+    ✍️ Внесение данных о прошедших ДД:
+
+        Задача: Реализовать для админа возможность отмечать, кто сдал кровь и кто вступил в регистр ДКМ на конкретном мероприятии.
+
+        Действия:
+
+            Создайте FSM, где админ сначала выбирает прошедшее мероприятие.
+
+            Затем админ может выбрать участников из списка зарегистрированных.
+
+            Для каждого выбранного участника админ подтверждает сдачу крови и отдельно — сдачу на ДКМ.
+
+            Этот функционал потребует новых хендлеров и клавиатур в админ-панели.
+
+    📝 Редактирование инфо-разделов:
+
+        Задача: Дать админу возможность менять тексты в "Полезной информации".
+
+        Действия (сложная задача, предлагаю упрощенный вариант):
+
+            Создать FSM, где админ выбирает, какой раздел он хочет отредактировать (info_prepare, info_dkm и т.д.).
+
+            Бот отправляет текущий текст раздела.
+
+            Админ присылает новый текст, который заменяет старый.
+
+            Реализация: Вместо хранения текстов в text_messages.py, их нужно будет перенести в отдельную таблицу в БД (section_key, section_text), чтобы их можно было обновлять.

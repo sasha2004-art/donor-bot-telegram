@@ -3,8 +3,8 @@ import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from bot.db import user_requests, admin_requests, event_requests, merch_requests
-from bot.db.models import User, Event, EventRegistration, MedicalWaiver, Donation, MerchItem, UserBlock, MerchOrder
+from bot.db import user_requests, admin_requests, event_requests, merch_requests, info_requests
+from bot.db.models import User, Event, EventRegistration, MedicalWaiver, Donation, MerchItem, UserBlock, MerchOrder, InfoText
 
 # Маркируем все тесты в этом файле для pytest-asyncio
 pytestmark = pytest.mark.asyncio
@@ -19,7 +19,7 @@ async def test_add_user_with_custom_university(session: AsyncSession):
         "telegram_id": 987654321,
         "telegram_username": "msu_student",
         "full_name": "Студент Другого ВУЗа",
-        "university": "МГУ им. Ломоносова", # Кастомный ВУЗ
+        "university": "МГУ им. Ломоносова", 
         "faculty": "ВМК",
         "study_group": "101",
         "gender": "male"
@@ -598,3 +598,28 @@ async def test_create_event_with_datetime(session: AsyncSession):
     assert retrieved_event is not None
     assert retrieved_event.name == "Event with Time"
     assert retrieved_event.event_datetime == event_dt
+    
+    
+async def test_update_info_text(session: AsyncSession):
+    """
+    Тестирует прямое обновление текста инфо-раздела через DB-запрос.
+    """
+    # 1. Подготовка
+    section_key = "test_section"
+    original_text = "This is the original text."
+    new_text = "This is the updated text."
+    
+    session.add(InfoText(
+        section_key=section_key, 
+        section_title="Test Section", 
+        section_text=original_text
+    ))
+    await session.commit()
+    
+    # 2. Выполнение
+    await info_requests.update_info_text(session, section_key, new_text)
+    
+    # 3. Проверка
+    updated_section = await session.get(InfoText, section_key)
+    assert updated_section is not None
+    assert updated_section.section_text == new_text

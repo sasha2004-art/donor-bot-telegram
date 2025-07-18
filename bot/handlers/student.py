@@ -13,10 +13,14 @@ from bot.utils.qr_service import generate_qr
 from bot.utils.text_messages import Text
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.exceptions import TelegramBadRequest
-from bot.db.models import MerchItem, Feedback
+from bot.db.models import MerchItem, Feedback, NoShowReport
 from bot.states.states import UserWaiver, FeedbackSurvey
 from aiogram.types import BufferedInputFile, WebAppInfo
 from bot.utils.calendar_service import generate_ics_file
+from bot.db import info_requests
+
+from bot.states.states import UserWaiver, FeedbackSurvey, AskQuestion
+from bot.db import user_requests, event_requests, merch_requests, question_requests 
 
 
 router = Router()
@@ -77,7 +81,18 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
     if not profile_data:
         await callback.answer(Text.PROFILE_LOAD_ERROR, show_alert=True)
         return
+    
     user_obj = profile_data['user']
+    last_donation = profile_data['last_donation']
+    
+    if last_donation:
+        blood_center = last_donation.event.blood_center_name if last_donation.event else "Не указан"
+        last_donation_info = f"{last_donation.donation_date.strftime('%d.%m.%Y')} ({Text.escape_html(blood_center)})"
+    else:
+        last_donation_info = "Еще не было"
+
+    dkm_status = "Да" if user_obj.is_dkm_donor else "Нет"
+
     text = Text.PROFILE_DATA_TEMPLATE.format(
         full_name=Text.escape_html(user_obj.full_name),
         university=Text.escape_html(user_obj.university),
@@ -87,8 +102,11 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
         rh_factor=Text.escape_html(user_obj.rh_factor or '?'),
         points=user_obj.points,
         total_donations=profile_data['total_donations'],
-        next_date=profile_data['next_possible_donation'].strftime('%d.%m.%Y')
+        next_date=profile_data['next_possible_donation'].strftime('%d.%m.%Y'),
+        last_donation_info=last_donation_info,
+        dkm_status=dkm_status
     )
+    
     await callback.message.edit_text(text, reply_markup=inline.get_back_to_profile_menu_keyboard(), parse_mode="HTML")
     await callback.answer()
 
@@ -482,16 +500,12 @@ async def show_info_menu(callback: types.CallbackQuery):
     )
     await callback.answer()
 
+
 @router.callback_query(F.data.startswith("info_"))
-async def show_info_text(callback: types.CallbackQuery):
+async def show_info_text(callback: types.CallbackQuery, session: AsyncSession):
     section = callback.data.split('_', 1)[1]
-    text_map = {
-        "prepare": Text.INFO_PREPARE,
-        "contraindications": Text.INFO_CONTRAINDICATIONS,
-        "after": Text.INFO_AFTER,
-        "contacts": Text.INFO_CONTACTS
-    }
-    text_to_show = text_map.get(section, Text.INFO_SECTION_NOT_FOUND)
+    text_to_show = await info_requests.get_info_text(session, section)
+
     await callback.message.edit_text(text_to_show, reply_markup=inline.get_back_to_info_menu_keyboard(), parse_mode="HTML", disable_web_page_preview=True)
     await callback.answer()
 
@@ -640,3 +654,34 @@ async def process_other_suggestions(event: types.Message | types.CallbackQuery, 
         await message_to_use.edit_text(Text.FEEDBACK_FINISH)
     except TelegramBadRequest:
         await message_to_use.answer(Text.FEEDBACK_FINISH)
+        
+        
+@router.callback_query(F.data == "ask_question")
+async def start_asking_question(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(AskQuestion.awaiting_question)
+    await callback.message.edit_text("Напишите ваш вопрос, и организаторы скоро на него ответят.")
+    await callback.answer()
+
+@router.message(AskQuestion.awaiting_question)
+async def process_question(message: types.Message, state: FSMContext, session: AsyncSession):
+    user = await user_requests.get_user_by_tg_id(session, message.from_user.id)
+    await question_requests.create_question(session, user.id, message.text)
+    await state.clear()
+    await message.answer(
+        "Спасибо! Ваш вопрос отправлен организаторам. Ответ придет сюда же, в этот чат.",
+        reply_markup=inline.get_back_to_main_menu_keyboard()
+    )
+    
+    
+@router.callback_query(F.data.startswith("no_show_"))
+async def process_no_show_reason(callback: types.CallbackQuery, session: AsyncSession):
+    _, event_id_str, reason = callback.data.split("_")
+    event_id = int(event_id_str)
+    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+
+    report = NoShowReport(user_id=user.id, event_id=event_id, reason=reason)
+    session.add(report)
+    await session.commit()
+    
+    await callback.message.edit_text("Спасибо за ваш ответ! Это поможет нам в организации будущих мероприятий.")
+    await callback.answer()
