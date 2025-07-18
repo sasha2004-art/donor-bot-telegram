@@ -1,0 +1,10 @@
+__pycache__/ 
+*.py[cod] 
+*$py.class 
+venv/ 
+.venv/ 
+.env 
+.idea/ 
+.vscode/ 
+*.pyc
+db_volume/

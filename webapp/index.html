@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Опрос для донора</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-button-color: #007bff;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-secondary-bg-color: #f4f4f4;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            margin: 0;
+            padding: 15px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 20px; text-align: center; }
+        .question-block {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .question-block h2 {
+            font-size: 18px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--tg-theme-hint-color); padding-bottom: 10px;
+        }
+        .question { margin-bottom: 15px; }
+        .question p { margin: 0 0 10px 0; font-weight: 500; font-size: 16px; line-height: 1.4; }
+        .options { display: flex; gap: 10px; }
+        .options label {
+            display: flex; align-items: center; gap: 5px; padding: 10px; border-radius: 8px;
+            border: 1px solid var(--tg-theme-hint-color); flex-grow: 1; justify-content: center; cursor: pointer; transition: all 0.2s ease;
+        }
+        input[type="radio"] { display: none; }
+        input[type="radio"]:checked + label {
+            background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border-color: var(--tg-theme-button-color);
+        }
+        #vaccine-type-question { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--tg-theme-hint-color); }
+        .content-spacer { height: 80px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Опрос перед донацией</h1>
+        <p style="text-align: center; color: var(--tg-theme-hint-color); margin-top: -15px; margin-bottom: 25px;">Пожалуйста, отвечайте честно. Это важно для вашей безопасности и безопасности реципиентов.</p>
+        
+        <form id="survey-form">
+            <!-- Блоки вопросов (кнопки переставлены, checked убран) -->
+            <div class="question-block">
+                <h2>Общее состояние</h2>
+                <div class="question"> <p>1. Как вы себя чувствуете сегодня?</p> <div class="options"> <input type="radio" id="feeling-bad" name="feeling" value="bad" required><label for="feeling-bad">Плохо</label> <input type="radio" id="feeling-good" name="feeling" value="good"><label for="feeling-good">Хорошо</label> </div> </div>
+                <div class="question"> <p>2. Ваш вес менее 50 кг?</p> <div class="options"> <input type="radio" id="weight-no" name="weight" value="no" required><label for="weight-no">Нет</label> <input type="radio" id="weight-yes" name="weight" value="yes"><label for="weight-yes">Да</label> </div> </div>
+                <div class="question"> <p>3. Есть ли у вас сейчас симптомы ОРВИ (насморк, кашель, температура)?</p> <div class="options"> <input type="radio" id="symptoms-no" name="symptoms" value="no" required><label for="symptoms-no">Нет</label> <input type="radio" id="symptoms-yes" name="symptoms" value="yes"><label for="symptoms-yes">Да</label> </div> </div>
+            </div>
+
+            <div class="question-block">
+                <h2>Процедуры и медикаменты</h2>
+                <div class="question"> <p>4. Делали ли вы тату, пирсинг или иглоукалывание за последние 4 месяца?</p> <div class="options"> <input type="radio" id="tattoo-no" name="tattoo" value="no" required><label for="tattoo-no">Нет</label> <input type="radio" id="tattoo-yes" name="tattoo" value="yes"><label for="tattoo-yes">Да</label> </div> </div>
+                <div class="question"> <p>5. Удаляли ли вам зуб за последние 10 дней?</p> <div class="options"> <input type="radio" id="tooth-no" name="tooth" value="no" required><label for="tooth-no">Нет</label> <input type="radio" id="tooth-yes" name="tooth" value="yes"><label for="tooth-yes">Да</label> </div> </div>
+                <div class="question">
+                    <p>6. Делали ли вы прививки за последний месяц?</p>
+                    <div class="options">
+                        <input type="radio" id="vaccine-no" name="vaccine" value="no" required><label for="vaccine-no">Нет</label>
+                        <input type="radio" id="vaccine-yes" name="vaccine" value="yes"><label for="vaccine-yes">Да</label>
+                    </div>
+                </div>
+                <div class="question" id="vaccine-type-question">
+                    <p>Уточните тип вакцины:</p>
+                    <div class="options">
+                        <input type="radio" id="vaccine-live" name="vaccine_type" value="live"><label for="vaccine-live">Живая (от кори, полиомиелита)</label>
+                        <input type="radio" id="vaccine-killed" name="vaccine_type" value="killed"><label for="vaccine-killed">Другая (от гриппа, COVID-19)</label>
+                    </div>
+                </div>
+                <div class="question"> <p>7. Принимали ли антибиотики за последние 2 недели?</p> <div class="options"> <input type="radio" id="antibiotics-no" name="antibiotics" value="no" required><label for="antibiotics-no">Нет</label> <input type="radio" id="antibiotics-yes" name="antibiotics" value="yes"><label for="antibiotics-yes">Да</label> </div> </div>
+                <div class="question"> <p>8. Принимали ли аспирин/анальгетики за последние 5 дней?</p> <div class="options"> <input type="radio" id="aspirin-no" name="aspirin" value="no" required><label for="aspirin-no">Нет</label> <input type="radio" id="aspirin-yes" name="aspirin" value="yes"><label for="aspirin-yes">Да</label> </div> </div>
+                <div class="question"> <p>9. Был ли у вас близкий контакт с больным гепатитом A за последние 3 мес.?</p> <div class="options"> <input type="radio" id="contact_hepatitis-no" name="contact_hepatitis" value="no" required><label for="contact_hepatitis-no">Нет</label> <input type="radio" id="contact_hepatitis-yes" name="contact_hepatitis" value="yes"><label for="contact_hepatitis-yes">Да</label> </div> </div>
+            </div>
+            
+            <div class="question-block">
+                <h2>История болезней</h2>
+                <div class="question"> <p>10. Диагностированы ли у вас ВИЧ, сифилис, вирусные гепатиты B или C?</p> <div class="options"> <input type="radio" id="diseases_absolute-no" name="diseases_absolute" value="no" required><label for="diseases_absolute-no">Нет</label> <input type="radio" id="diseases_absolute-yes" name="diseases_absolute" value="yes"><label for="diseases_absolute-yes">Да</label> </div> </div>
+                <div class="question"> <p>11. Диагностированы ли у вас болезни крови, рак, туберкулез, серьезные болезни сердца?</p> <div class="options"> <input type="radio" id="diseases_chronic-no" name="diseases_chronic" value="no" required><label for="diseases_chronic-no">Нет</label> <input type="radio" id="diseases_chronic-yes" name="diseases_chronic" value="yes"><label for="diseases_chronic-yes">Да</label> </div> </div>
+            </div>
+
+            <div class="question-block">
+                <h2>Поездки и образ жизни</h2>
+                 <div class="question"> <p>12. Были ли вы более 3 месяцев в странах Азии, Африки, Южной/Центральной Америки за последние 3 года?</p> <div class="options"> <input type="radio" id="travel-no" name="travel" value="no" required><label for="travel-no">Нет</label> <input type="radio" id="travel-yes" name="travel" value="yes"><label for="travel-yes">Да</label> </div> </div>
+                 <div class="question"> <p>13. Употребляли ли алкоголь за последние 48 часов?</p> <div class="options"> <input type="radio" id="alcohol-no" name="alcohol" value="no" required><label for="alcohol-no">Нет</label> <input type="radio" id="alcohol-yes" name="alcohol" value="yes"><label for="alcohol-yes">Да</label> </div> </div>
+            </div>
+            <div class="content-spacer"></div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tg = window.Telegram.WebApp;
+            const form = document.getElementById('survey-form');
+            
+            const applyTheme = () => {
+                document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
+                document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
+                document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#007bff');
+                document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+                document.body.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
+                document.body.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f4f4f4');
+            };
+
+            document.querySelectorAll('input[name="vaccine"]').forEach(radio => {
+                radio.addEventListener('change', event => {
+                    const vaccineTypeQuestion = document.getElementById('vaccine-type-question');
+                    const vaccineTypeRadios = vaccineTypeQuestion.querySelectorAll('input[type="radio"]');
+                    const shouldShow = event.target.value === 'yes';
+                    vaccineTypeQuestion.style.display = shouldShow ? 'block' : 'none';
+                    vaccineTypeRadios.forEach(r => r.required = shouldShow);
+                });
+            });
+
+            const sendData = async () => {
+                const authString = tg.initData;
+                
+                if (!authString) {
+                    tg.showAlert('Критическая ошибка: данные авторизации отсутствуют. Пожалуйста, перезапустите бота и опрос.');
+                    return;
+                }
+                
+                if (!form.checkValidity()) {
+                    tg.showAlert('Пожалуйста, ответьте на все вопросы.');
+                    const firstInvalid = form.querySelector(':invalid');
+                    if (firstInvalid) {
+                        firstInvalid.closest('.question-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                }
+
+                tg.MainButton.showProgress();
+                tg.MainButton.disable();
+
+                const formData = new FormData(form);
+                const surveyData = {};
+                for (const [key, value] of formData.entries()) {
+                    surveyData[key] = value;
+                }
+
+                try {
+                    const response = await fetch('/api/submit_survey', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            survey_data: surveyData,
+                            auth_string: authString
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        tg.close();
+                    } else {
+                        const errorData = await response.json();
+                        tg.showAlert(`Произошла ошибка на сервере: ${errorData.detail || 'Попробуйте снова.'}`, () => {
+                            tg.close();
+                        });
+                    }
+                } catch (error) {
+                    tg.showAlert('Ошибка сети. Пожалуйста, проверьте ваше интернет-соединение и попробуйте снова.');
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.enable();
+                }
+            };
+
+            tg.ready();
+            tg.expand();
+            applyTheme();
+            
+            tg.MainButton.setText('Отправить ответы');
+            tg.MainButton.onClick(sendData);
+            tg.MainButton.show();
+        });
+    </script>
+</body>
+</html>

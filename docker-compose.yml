@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: donor_db_container
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+    volumes:
+      - db_volume:/var/lib/postgresql/data
+    ports:
+      - "5432:5432" 
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  bot:
+    build: .
+    container_name: donor_bot_container
+    env_file: .env
+    depends_on:
+      - db
+    restart: always
+    volumes:
+      - .:/app
+    expose:
+      - "8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"] 
+      interval: 1m
+      timeout: 10s
+      retries: 3
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    container_name: donor_ngrok_container
+    restart: always
+    depends_on:
+      - bot 
+    environment:
+      NGROK_AUTHTOKEN: ${NGROK_AUTHTOKEN}
+    command: http bot:8000 --log=stdout
+    ports:
+      - "4040:4040"
+  redis:
+    image: redis:7-alpine
+    container_name: donor_redis_container
+    restart: always
+    volumes:
+      - redis_volume:/data
+
+volumes:
+  db_volume:
+  redis_volume:
