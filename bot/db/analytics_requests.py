@@ -106,3 +106,53 @@ async def get_event_analysis_data(session: AsyncSession, event_id: int) -> dict:
         "veterans_count": attended_count - newcomers_count,
         "faculties_distribution": faculties_dist
     }
+
+async def get_one_time_donors(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые сдали кровь только один раз."""
+    stmt = (
+        select(User, func.count(Donation.id).label("donation_count"))
+        .join(Donation)
+        .group_by(User)
+        .having(func.count(Donation.id) == 1)
+    )
+    result = await session.execute(stmt)
+    return [{"full_name": row.User.full_name, "telegram_username": row.User.telegram_username} for row in result]
+
+async def get_no_show_donors(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые регистрировались, но не пришли."""
+    stmt = (
+        select(User)
+        .join(EventRegistration)
+        .where(EventRegistration.status == "no_show_survey_sent")
+    )
+    result = await session.execute(stmt)
+    return [{"full_name": row.User.full_name, "telegram_username": row.User.telegram_username} for row in result]
+
+async def get_dkm_donors(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые являются донорами костного мозга."""
+    stmt = select(User).where(User.is_dkm_donor == True)
+    result = await session.execute(stmt)
+    return [{"full_name": row.User.full_name, "telegram_username": row.User.telegram_username} for row in result]
+
+async def get_students(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые являются студентами."""
+    stmt = select(User).where(User.category == "student")
+    result = await session.execute(stmt)
+    return [{"full_name": row.User.full_name, "telegram_username": row.User.telegram_username} for row in result]
+
+async def get_employees(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые являются сотрудниками."""
+    stmt = select(User).where(User.category == "employee")
+    result = await session.execute(stmt)
+    return [{"full_name": row.User.full_name, "telegram_username": row.User.telegram_username} for row in result]
+
+async def get_external_donors(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые являются внешними донорами."""
+    stmt = select(User).where(User.category == "external")
+    result = await session.execute(stmt)
+    return [{"full_name": row.User.full_name, "telegram_username": row.User.telegram_username} for row in result]
+
+async def get_graduated_donors(session: AsyncSession) -> list[dict]:
+    """Возвращает список доноров, которые выпустились из университета."""
+    # This is a placeholder. The actual implementation will depend on how graduation is determined.
+    return []

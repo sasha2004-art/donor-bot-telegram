@@ -16,11 +16,9 @@ class User(Base):
     telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False, index=True)
     telegram_username: Mapped[str] = mapped_column(String(255), nullable=True, index=True)
     full_name: Mapped[str] = mapped_column(String(255), index=True)
-    university: Mapped[str] = mapped_column(String(100), index=True)
+    university: Mapped[str] = mapped_column(String(100), nullable=True, index=True)
     faculty: Mapped[str] = mapped_column(String(100), nullable=True)
     study_group: Mapped[str] = mapped_column(String(50), nullable=True)
-    blood_type: Mapped[str] = mapped_column(String(10), nullable=True)
-    rh_factor: Mapped[str] = mapped_column(String(1), nullable=True)
     gender: Mapped[str] = mapped_column(String(10), nullable=True)
     points: Mapped[int] = mapped_column(Integer, default=0)
     role: Mapped[str] = mapped_column(String(50), default='student', index=True)
@@ -197,3 +195,10 @@ class NoShowReport(Base):
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     user: Mapped["User"] = relationship()
     event: Mapped["Event"] = relationship()
+
+class Report(Base):
+    __tablename__ = 'reports'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    data: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

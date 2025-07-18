@@ -56,6 +56,19 @@ async def get_event_by_id(session: AsyncSession, event_id: int) -> Event | None:
     """Получает мероприятие по его ID."""
     return await session.get(Event, event_id)
 
+async def get_today_event(session: AsyncSession) -> Event | None:
+    """Получает мероприятие, которое проходит сегодня."""
+    today = datetime.date.today()
+    stmt = (
+        select(Event)
+        .where(
+            Event.is_active == True,
+            func.date(Event.event_datetime) == today
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
 async def check_registration_eligibility(session: AsyncSession, user: User, event: Event) -> tuple[bool, str]:
     """Проверяет, может ли пользователь зарегистрироваться на мероприятие."""
     # Получаем только дату мероприятия для сравнения с медотводами

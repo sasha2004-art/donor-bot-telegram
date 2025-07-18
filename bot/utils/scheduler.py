@@ -159,6 +159,27 @@ async def check_waiver_expirations(bot: Bot, session_pool: async_sessionmaker):
                 logger.error(f"Failed to send waiver expiration notification to user {user.id}. Error: {e}")
 
 
+async def check_student_status(bot: Bot, session_pool: async_sessionmaker):
+    """Проверяет, не выпустился ли студент."""
+    async with session_pool() as session:
+        stmt = select(User).where(User.category == "student")
+        results = await session.execute(stmt)
+        students = results.scalars().all()
+
+        for student in students:
+            try:
+                if student.study_group:
+                    # Very simplified logic. A real implementation would be more complex.
+                    study_group_year = int(student.study_group.split("-")[1][:2])
+                    current_year = datetime.datetime.now().year % 100
+                    if current_year - study_group_year > 4:
+                        await bot.send_message(
+                            chat_id=student.telegram_id,
+                            text="Привет! Похоже, ты уже выпустился из университета. Пожалуйста, обнови свои данные."
+                        )
+            except Exception as e:
+                logger.error(f"Failed to check student status for user {student.id}. Error: {e}", exc_info=True)
+
 def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
@@ -182,7 +203,14 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
         trigger='cron',
         hour=10,
         minute=30,
-        args=[bot, session_pool, datetime.timedelta(days=2), datetime.timedelta(days=1), Text.REMINDER_2_DAYS]
+        args=[bot, session_pool, datetime.timedelta(days=3), datetime.timedelta(days=1), Text.REMINDER_3_DAYS]
+    )
+    scheduler.add_job(
+        send_reminders_for_interval,
+        trigger='cron',
+        hour=10,
+        minute=30,
+        args=[bot, session_pool, datetime.timedelta(days=1), datetime.timedelta(days=1), Text.REMINDER_1_DAY]
     )
     scheduler.add_job(
         send_reminders_for_interval,
@@ -207,7 +235,17 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
         args=[bot, session_pool, storage]
     )
     
-    logger.info("Scheduler configured successfully with 5 jobs.")
+    scheduler.add_job(
+        check_student_status,
+        trigger='cron',
+        month=9,
+        day=1,
+        hour=12,
+        minute=0,
+        args=[bot, session_pool]
+    )
+
+    logger.info("Scheduler configured successfully with 6 jobs.")
     return scheduler
 
 async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):

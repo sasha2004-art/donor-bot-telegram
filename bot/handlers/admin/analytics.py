@@ -103,3 +103,36 @@ async def show_event_analysis(callback: types.CallbackQuery, session: AsyncSessi
         parse_mode="HTML",
         reply_markup=inline.get_analytics_main_menu_keyboard()
     )
+
+@router.callback_query(F.data == "analytics_reports", RoleFilter('admin'))
+async def show_reports_menu(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "📄 <b>Отчеты</b>\n\nВыберите категорию отчета:",
+        reply_markup=inline.get_reports_menu_keyboard(),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("report_"), RoleFilter('admin'))
+async def generate_report(callback: types.CallbackQuery, session: AsyncSession, bot: Bot):
+    report_type = callback.data.split("_", 1)[1]
+    await callback.answer("⏳ Генерирую отчет...")
+
+    report_data = await analytics_service.create_report(session, report_type)
+
+    if not report_data:
+        await callback.message.edit_text("Нет данных для этого отчета.")
+        return
+
+    report_text = f"📄 <b>Отчет: {report_type}</b>\n\n"
+    for item in report_data:
+        report_text += f"👤 {item['full_name']} (@{item['telegram_username']})\n"
+
+    await bot.send_document(
+        chat_id=callback.from_user.id,
+        document=types.BufferedInputFile(
+            report_text.encode("utf-8"),
+            filename=f"report_{report_type}.txt"
+        ),
+        caption=f"Отчет по категории: {report_type}"
+    )

@@ -157,8 +157,14 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
     category = callback.data.split('_', 1)[1]
     await state.update_data(category=category)
     
-    await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
-    await state.set_state(Registration.awaiting_university)
+    if category == 'external':
+        await state.update_data(university=None, faculty=None, study_group=None)
+        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+        await state.set_state(Registration.awaiting_gender)
+    else:
+        await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
+        await state.set_state(Registration.awaiting_university)
+
     await callback.answer()
 
 

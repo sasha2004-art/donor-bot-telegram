@@ -98,8 +98,6 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
         university=Text.escape_html(user_obj.university),
         faculty=Text.escape_html(user_obj.faculty or 'Не указан'),
         study_group=Text.escape_html(user_obj.study_group or 'Не указана'),
-        blood_type=Text.escape_html(user_obj.blood_type or 'Не указана'),
-        rh_factor=Text.escape_html(user_obj.rh_factor or '?'),
         points=user_obj.points,
         total_donations=profile_data['total_donations'],
         next_date=profile_data['next_possible_donation'].strftime('%d.%m.%Y'),
@@ -140,6 +138,12 @@ async def show_survey_or_events(callback: types.CallbackQuery, session: AsyncSes
     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
     if not user:
         await callback.answer(Text.ERROR_PROFILE_NOT_FOUND, show_alert=True)
+        return
+
+    # Проверяем, есть ли сегодня мероприятие
+    today_event = await event_requests.get_today_event(session)
+    if today_event:
+        await show_events_for_registration(callback.message, session, user.id)
         return
 
     # Проверяем наличие недавнего успешного опросника

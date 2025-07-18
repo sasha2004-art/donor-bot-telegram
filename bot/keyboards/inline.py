@@ -191,8 +191,21 @@ def get_analytics_main_menu_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📈 Общая статистика (KPI)", callback_data="analytics_kpi"))
     builder.row(InlineKeyboardButton(text="📅 Анализ мероприятий", callback_data="analytics_events_select"))
+    builder.row(InlineKeyboardButton(text="📄 Отчеты", callback_data="analytics_reports"))
     # Можно добавить еще кнопки для других разделов
     builder.row(InlineKeyboardButton(text="↩️ В админ-панель", callback_data="admin_panel"))
+    return builder.as_markup()
+
+def get_reports_menu_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="Одноразовые доноры", callback_data="report_one_time_donors"))
+    builder.row(InlineKeyboardButton(text="Не пришедшие на донацию", callback_data="report_no_show_donors"))
+    builder.row(InlineKeyboardButton(text="Доноры костного мозга", callback_data="report_dkm_donors"))
+    builder.row(InlineKeyboardButton(text="Студенты", callback_data="report_students"))
+    builder.row(InlineKeyboardButton(text="Сотрудники", callback_data="report_employees"))
+    builder.row(InlineKeyboardButton(text="Внешние доноры", callback_data="report_external_donors"))
+    builder.row(InlineKeyboardButton(text="Выпустившиеся доноры", callback_data="report_graduated_donors"))
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="admin_analytics"))
     return builder.as_markup()
 
 def get_events_for_analysis_keyboard(events: list):

@@ -1,6 +1,29 @@
 import io
 import matplotlib.pyplot as plt
 import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from bot.db import analytics_requests
+
+async def create_report(session: AsyncSession, report_type: str) -> dict:
+    """
+    Создает отчет на основе указанного типа.
+    """
+    report_data = {}
+    if report_type == "one_time_donors":
+        report_data = await analytics_requests.get_one_time_donors(session)
+    elif report_type == "no_show_donors":
+        report_data = await analytics_requests.get_no_show_donors(session)
+    elif report_type == "dkm_donors":
+        report_data = await analytics_requests.get_dkm_donors(session)
+    elif report_type == "students":
+        report_data = await analytics_requests.get_students(session)
+    elif report_type == "employees":
+        report_data = await analytics_requests.get_employees(session)
+    elif report_type == "external_donors":
+        report_data = await analytics_requests.get_external_donors(session)
+    elif report_type == "graduated_donors":
+        report_data = await analytics_requests.get_graduated_donors(session)
+    return report_data
 
 def plot_donations_by_month(data: list[tuple]) -> io.BytesIO:
     """
