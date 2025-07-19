@@ -156,7 +156,38 @@ class Survey(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
     created_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     passed: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    answers_json: Mapped[dict] = mapped_column(JSON, nullable=False)
+
+    # Общие вопросы
+    age: Mapped[str] = mapped_column(String(50), nullable=True)
+    weight: Mapped[str] = mapped_column(String(50), nullable=True)
+    health_issues_last_month: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # Новые вопросы из требований
+    symptoms: Mapped[str] = mapped_column(String(50), nullable=True) # ОРВИ, ангина, грипп
+    pressure: Mapped[str] = mapped_column(String(50), nullable=True)
+    hemoglobin_level: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # Подготовка к донации
+    diet_followed: Mapped[str] = mapped_column(String(50), nullable=True)
+    alcohol_last_48h: Mapped[str] = mapped_column(String(50), nullable=True)
+    medication_last_72h: Mapped[str] = mapped_column(String(50), nullable=True)
+    sleep_last_night: Mapped[str] = mapped_column(String(50), nullable=True)
+    smoking_last_hour: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # Противопоказания
+    tattoo_or_piercing: Mapped[str] = mapped_column(String(50), nullable=True)
+    tooth_removal_last_10_days: Mapped[str] = mapped_column(String(50), nullable=True)
+    menstruation_last_5_days: Mapped[str] = mapped_column(String(50), nullable=True)
+    antibiotics_last_2_weeks: Mapped[str] = mapped_column(String(50), nullable=True)
+    analgesics_last_3_days: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # Абсолютные противопоказания
+    has_hiv_or_hepatitis: Mapped[str] = mapped_column(String(50), nullable=True)
+    has_cancer_or_blood_disease: Mapped[str] = mapped_column(String(50), nullable=True)
+    has_chronic_disease: Mapped[str] = mapped_column(String(50), nullable=True)
+
+    # Старые поля для обратной совместимости (если нужны)
+    answers_json: Mapped[dict] = mapped_column(JSON, nullable=True)
     verdict_text: Mapped[str] = mapped_column(Text, nullable=True)
     
     user: Mapped["User"] = relationship()

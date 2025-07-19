@@ -49,20 +49,34 @@ dp = Dispatcher(storage=storage)
 
 
 class SurveyAnswers(BaseModel):
-    feeling: str
+    # Общие вопросы
+    age: str
     weight: str
-    symptoms: str
-    tattoo: str
-    tooth: str
-    vaccine: str
-    vaccine_type: str | None = None
-    antibiotics: str
-    aspirin: str
-    contact_hepatitis: str
-    diseases_absolute: str
-    diseases_chronic: str
-    travel: str
-    alcohol: str
+    health_issues_last_month: str
+
+    # Новые вопросы из требований
+    symptoms: str # ОРВИ, ангина, грипп
+    pressure: str
+    hemoglobin_level: str
+
+    # Подготовка к донации
+    diet_followed: str
+    alcohol_last_48h: str
+    medication_last_72h: str
+    sleep_last_night: str
+    smoking_last_hour: str
+
+    # Противопоказания
+    tattoo_or_piercing: str
+    tooth_removal_last_10_days: str
+    menstruation_last_5_days: str
+    antibiotics_last_2_weeks: str
+    analgesics_last_3_days: str
+
+    # Абсолютные противопоказания
+    has_hiv_or_hepatitis: str
+    has_cancer_or_blood_disease: str
+    has_chronic_disease: str
 
 class SurveyPayload(BaseModel):
     survey_data: SurveyAnswers
@@ -96,31 +110,39 @@ def validate_telegram_data(auth_data: str) -> dict:
         raise HTTPException(status_code=403, detail=str(e))
 
 async def process_survey_rules(answers: SurveyAnswers) -> tuple[str, int | None, str]:
-    if answers.diseases_absolute == 'yes' or answers.diseases_chronic == 'yes':
-        return ('temp_waiver', 365000, "Абсолютное противопоказание (хронические/инфекционные заболевания).")
-    if answers.feeling == 'bad':
-        return ('temp_waiver', 3, "Плохое самочувствие.")
-    if answers.symptoms == 'yes':
-        return ('temp_waiver', 14, "Симптомы ОРВИ (включая насморк, кашель).")
-    if answers.weight == 'yes':
+    # Абсолютные противопоказания
+    if answers.age == 'no':
+        return ('temp_waiver', 365000, "Возраст менее 18 лет.")
+    if answers.has_hiv_or_hepatitis == 'yes' or answers.has_cancer_or_blood_disease == 'yes' or answers.has_chronic_disease == 'yes':
+        return ('temp_waiver', 365000, "Абсолютное противопоказание (ВИЧ, гепатит, онкология, болезни крови, астма).")
+
+    # Временные противопоказания
+    if answers.weight == 'no':
         return ('temp_waiver', 365000, "Вес менее 50 кг.")
-    if answers.tattoo == 'yes':
-        return ('temp_waiver', 120, "Наличие свежей татуировки/пирсинга.")
-    if answers.tooth == 'yes':
-        return ('temp_waiver', 10, "Недавнее удаление зуба.")
-    if answers.vaccine == 'yes':
-        days = 30 if answers.vaccine_type == 'live' else 10
-        return ('temp_waiver', days, "Недавняя вакцинация.")
-    if answers.antibiotics == 'yes':
-        return ('temp_waiver', 14, "Прием антибиотиков.")
-    if answers.aspirin == 'yes':
-        return ('temp_waiver', 5, "Прием анальгетиков/аспирина.")
-    if answers.contact_hepatitis == 'yes':
-        return ('temp_waiver', 90, "Контакт с больным гепатитом A.")
-    if answers.travel == 'yes':
-        return ('temp_waiver', 30, "Длительное пребывание в эндемичных странах.")
-    if answers.alcohol == 'yes':
+    if answers.health_issues_last_month == 'yes' or answers.symptoms == 'yes':
+        return ('temp_waiver', 30, "ОРВИ, грипп или ангина в течение последнего месяца.")
+    if answers.tooth_removal_last_10_days == 'yes':
+        return ('temp_waiver', 10, "Удаление зуба в последние 10 дней.")
+    if answers.menstruation_last_5_days == 'yes':
+        return ('temp_waiver', 5, "Менструация (включая 5 дней после).")
+    if answers.tattoo_or_piercing == 'yes':
+        return ('temp_waiver', 120, "Наличие свежей татуировки/пирсинга (отвод на 4 месяца).")
+    if answers.antibiotics_last_2_weeks == 'yes':
+        return ('temp_waiver', 14, "Прием антибиотиков в последние 2 недели.")
+    if answers.analgesics_last_3_days == 'yes' or answers.medication_last_72h == 'yes':
+        return ('temp_waiver', 3, "Прием анальгетиков или других лекарств в последние 3 дня.")
+
+    # Подготовка к донации
+    if answers.alcohol_last_48h == 'yes':
         return ('temp_waiver', 2, "Употребление алкоголя за последние 48 часов.")
+    if answers.diet_followed == 'no':
+        return ('ok', 0, "Несоблюдение диеты. Рекомендуется перенести донацию.") # Нестрогое правило
+    if answers.sleep_last_night == 'no':
+        return ('ok', 0, "Недостаточный сон. Рекомендуется перенести донацию.") # Нестрогое правило
+    if answers.smoking_last_hour == 'yes':
+        return ('ok', 0, "Курение в течение последнего часа. Рекомендуется воздержаться.") # Нестрогое правило
+
+    # Если все проверки пройдены
     return ('ok', 0, "Противопоказаний не выявлено.")
 
 async def get_ngrok_url():
@@ -215,7 +237,7 @@ async def submit_survey_logic(session: AsyncSession, payload: SurveyPayload) -> 
         raise HTTPException(status_code=404, detail="User not found in DB")
 
     logger.info(f"submit_survey_logic: Found user '{user.full_name}' (ID: {user.id}) in DB.")
-    survey_record = Survey(user_id=user.id, passed=(status == 'ok'), answers_json=answers.model_dump(), verdict_text=reason)
+    survey_record = Survey(user_id=user.id, passed=(status == 'ok'), verdict_text=reason, **answers.model_dump())
     session.add(survey_record)
 
     chat_id_to_send = user_tg_id 

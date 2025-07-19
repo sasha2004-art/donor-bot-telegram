@@ -45,7 +45,6 @@
         input[type="radio"]:checked + label {
             background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border-color: var(--tg-theme-button-color);
         }
-        #vaccine-type-question { display: none; margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--tg-theme-hint-color); }
         .content-spacer { height: 80px; }
     </style>
 </head>
@@ -55,48 +54,48 @@
         <p style="text-align: center; color: var(--tg-theme-hint-color); margin-top: -15px; margin-bottom: 25px;">Пожалуйста, отвечайте честно. Это важно для вашей безопасности и безопасности реципиентов.</p>
         
         <form id="survey-form">
-            <!-- Блоки вопросов (кнопки переставлены, checked убран) -->
             <div class="question-block">
-                <h2>Общее состояние</h2>
-                <div class="question"> <p>1. Как вы себя чувствуете сегодня?</p> <div class="options"> <input type="radio" id="feeling-bad" name="feeling" value="bad" required><label for="feeling-bad">Плохо</label> <input type="radio" id="feeling-good" name="feeling" value="good"><label for="feeling-good">Хорошо</label> </div> </div>
-                <div class="question"> <p>2. Ваш вес менее 50 кг?</p> <div class="options"> <input type="radio" id="weight-no" name="weight" value="no" required><label for="weight-no">Нет</label> <input type="radio" id="weight-yes" name="weight" value="yes"><label for="weight-yes">Да</label> </div> </div>
-                <div class="question"> <p>3. Есть ли у вас сейчас симптомы ОРВИ (насморк, кашель, температура)?</p> <div class="options"> <input type="radio" id="symptoms-no" name="symptoms" value="no" required><label for="symptoms-no">Нет</label> <input type="radio" id="symptoms-yes" name="symptoms" value="yes"><label for="symptoms-yes">Да</label> </div> </div>
+                <h2>Основные требования</h2>
+                <div class="question"> <p>1. Вам есть 18 лет?</p> <div class="options"> <input type="radio" id="age-no" name="age" value="no"><label for="age-no">Нет</label> <input type="radio" id="age-yes" name="age" value="yes" required><label for="age-yes">Да</label> </div> </div>
+                <div class="question"> <p>2. Ваш вес 50 кг или более?</p> <div class="options"> <input type="radio" id="weight-no" name="weight" value="no"><label for="weight-no">Нет</label> <input type="radio" id="weight-yes" name="weight" value="yes" required><label for="weight-yes">Да</label> </div> </div>
             </div>
 
             <div class="question-block">
-                <h2>Процедуры и медикаменты</h2>
-                <div class="question"> <p>4. Делали ли вы тату, пирсинг или иглоукалывание за последние 4 месяца?</p> <div class="options"> <input type="radio" id="tattoo-no" name="tattoo" value="no" required><label for="tattoo-no">Нет</label> <input type="radio" id="tattoo-yes" name="tattoo" value="yes"><label for="tattoo-yes">Да</label> </div> </div>
-                <div class="question"> <p>5. Удаляли ли вам зуб за последние 10 дней?</p> <div class="options"> <input type="radio" id="tooth-no" name="tooth" value="no" required><label for="tooth-no">Нет</label> <input type="radio" id="tooth-yes" name="tooth" value="yes"><label for="tooth-yes">Да</label> </div> </div>
-                <div class="question">
-                    <p>6. Делали ли вы прививки за последний месяц?</p>
-                    <div class="options">
-                        <input type="radio" id="vaccine-no" name="vaccine" value="no" required><label for="vaccine-no">Нет</label>
-                        <input type="radio" id="vaccine-yes" name="vaccine" value="yes"><label for="vaccine-yes">Да</label>
-                    </div>
-                </div>
-                <div class="question" id="vaccine-type-question">
-                    <p>Уточните тип вакцины:</p>
-                    <div class="options">
-                        <input type="radio" id="vaccine-live" name="vaccine_type" value="live"><label for="vaccine-live">Живая (от кори, полиомиелита)</label>
-                        <input type="radio" id="vaccine-killed" name="vaccine_type" value="killed"><label for="vaccine-killed">Другая (от гриппа, COVID-19)</label>
-                    </div>
-                </div>
-                <div class="question"> <p>7. Принимали ли антибиотики за последние 2 недели?</p> <div class="options"> <input type="radio" id="antibiotics-no" name="antibiotics" value="no" required><label for="antibiotics-no">Нет</label> <input type="radio" id="antibiotics-yes" name="antibiotics" value="yes"><label for="antibiotics-yes">Да</label> </div> </div>
-                <div class="question"> <p>8. Принимали ли аспирин/анальгетики за последние 5 дней?</p> <div class="options"> <input type="radio" id="aspirin-no" name="aspirin" value="no" required><label for="aspirin-no">Нет</label> <input type="radio" id="aspirin-yes" name="aspirin" value="yes"><label for="aspirin-yes">Да</label> </div> </div>
-                <div class="question"> <p>9. Был ли у вас близкий контакт с больным гепатитом A за последние 3 мес.?</p> <div class="options"> <input type="radio" id="contact_hepatitis-no" name="contact_hepatitis" value="no" required><label for="contact_hepatitis-no">Нет</label> <input type="radio" id="contact_hepatitis-yes" name="contact_hepatitis" value="yes"><label for="contact_hepatitis-yes">Да</label> </div> </div>
-            </div>
-            
-            <div class="question-block">
-                <h2>История болезней</h2>
-                <div class="question"> <p>10. Диагностированы ли у вас ВИЧ, сифилис, вирусные гепатиты B или C?</p> <div class="options"> <input type="radio" id="diseases_absolute-no" name="diseases_absolute" value="no" required><label for="diseases_absolute-no">Нет</label> <input type="radio" id="diseases_absolute-yes" name="diseases_absolute" value="yes"><label for="diseases_absolute-yes">Да</label> </div> </div>
-                <div class="question"> <p>11. Диагностированы ли у вас болезни крови, рак, туберкулез, серьезные болезни сердца?</p> <div class="options"> <input type="radio" id="diseases_chronic-no" name="diseases_chronic" value="no" required><label for="diseases_chronic-no">Нет</label> <input type="radio" id="diseases_chronic-yes" name="diseases_chronic" value="yes"><label for="diseases_chronic-yes">Да</label> </div> </div>
+                <h2>Ваше здоровье</h2>
+                <div class="question"> <p>3. Болели ли Вы ОРВИ, гриппом или ангиной в течение последнего месяца?</p> <div class="options"> <input type="radio" id="health_issues-yes" name="health_issues_last_month" value="yes"><label for="health_issues-yes">Да</label> <input type="radio" id="health_issues-no" name="health_issues_last_month" value="no" required><label for="health_issues-no">Нет</label> </div> </div>
+                <div class="question"> <p>4. Есть ли у вас сейчас симптомы простуды (насморк, кашель, температура, боль в горле)?</p> <div class="options"> <input type="radio" id="symptoms-yes" name="symptoms" value="yes"><label for="symptoms-yes">Да</label> <input type="radio" id="symptoms-no" name="symptoms" value="no" required><label for="symptoms-no">Нет</label> </div> </div>
+                <div class="question"> <p>5. Удаляли ли Вам зуб в течение последних 10 дней?</p> <div class="options"> <input type="radio" id="tooth-yes" name="tooth_removal_last_10_days" value="yes"><label for="tooth-yes">Да</label> <input type="radio" id="tooth-no" name="tooth_removal_last_10_days" value="no" required><label for="tooth-no">Нет</label> </div> </div>
+                <div class="question"> <p>6. (Для женщин) Прошло ли 5 дней с окончания менструации?</p> <div class="options"> <input type="radio" id="menstruation-no" name="menstruation_last_5_days" value="no"><label for="menstruation-no">Нет</label> <input type="radio" id="menstruation-yes" name="menstruation_last_5_days" value="yes" required><label for="menstruation-yes">Да</label> </div> </div>
             </div>
 
             <div class="question-block">
-                <h2>Поездки и образ жизни</h2>
-                 <div class="question"> <p>12. Были ли вы более 3 месяцев в странах Азии, Африки, Южной/Центральной Америки за последние 3 года?</p> <div class="options"> <input type="radio" id="travel-no" name="travel" value="no" required><label for="travel-no">Нет</label> <input type="radio" id="travel-yes" name="travel" value="yes"><label for="travel-yes">Да</label> </div> </div>
-                 <div class="question"> <p>13. Употребляли ли алкоголь за последние 48 часов?</p> <div class="options"> <input type="radio" id="alcohol-no" name="alcohol" value="no" required><label for="alcohol-no">Нет</label> <input type="radio" id="alcohol-yes" name="alcohol" value="yes"><label for="alcohol-yes">Да</label> </div> </div>
+                <h2>Процедуры и лекарства</h2>
+                <div class="question"> <p>7. Делали ли Вы татуировку, пирсинг или эндоскопию в последние 4-12 месяцев?</p> <div class="options"> <input type="radio" id="tattoo-yes" name="tattoo_or_piercing" value="yes"><label for="tattoo-yes">Да</label> <input type="radio" id="tattoo-no" name="tattoo_or_piercing" value="no" required><label for="tattoo-no">Нет</label> </div> </div>
+                <div class="question"> <p>8. Принимали ли Вы антибиотики в последние 2 недели?</p> <div class="options"> <input type="radio" id="antibiotics-yes" name="antibiotics_last_2_weeks" value="yes"><label for="antibiotics-yes">Да</label> <input type="radio" id="antibiotics-no" name="antibiotics_last_2_weeks" value="no" required><label for="antibiotics-no">Нет</label> </div> </div>
+                <div class="question"> <p>9. Принимали ли Вы анальгетики (обезболивающие) или аспирин в последние 3 дня?</p> <div class="options"> <input type="radio" id="analgesics-yes" name="analgesics_last_3_days" value="yes"><label for="analgesics-yes">Да</label> <input type="radio" id="analgesics-no" name="analgesics_last_3_days" value="no" required><label for="analgesics-no">Нет</label> </div> </div>
+                 <div class="question"> <p>10. Принимали ли Вы какие-либо другие лекарства за последние 72 часа?</p> <div class="options"> <input type="radio" id="meds-yes" name="medication_last_72h" value="yes"><label for="meds-yes">Да</label> <input type="radio" id="meds-no" name="medication_last_72h" value="no" required><label for="meds-no">Нет</label> </div> </div>
             </div>
+
+            <div class="question-block">
+                <h2>Подготовка к донации</h2>
+                <div class="question"> <p>11. Соблюдали ли Вы диету в последние 2-3 дня (исключали жирное, молочное, яйца, орехи)?</p> <div class="options"> <input type="radio" id="diet-no" name="diet_followed" value="no"><label for="diet-no">Нет</label> <input type="radio" id="diet-yes" name="diet_followed" value="yes" required><label for="diet-yes">Да</label> </div> </div>
+                <div class="question"> <p>12. Употребляли ли Вы алкоголь в течение последних 48 часов?</p> <div class="options"> <input type="radio" id="alcohol-yes" name="alcohol_last_48h" value="yes"><label for="alcohol-yes">Да</label> <input type="radio" id="alcohol-no" name="alcohol_last_48h" value="no" required><label for="alcohol-no">Нет</label> </div> </div>
+                <div class="question"> <p>13. Вы спали не менее 8 часов прошлой ночью?</p> <div class="options"> <input type="radio" id="sleep-no" name="sleep_last_night" value="no"><label for="sleep-no">Нет</label> <input type="radio" id="sleep-yes" name="sleep_last_night" value="yes" required><label for="sleep-yes">Да</label> </div> </div>
+                <div class="question"> <p>14. Курили ли Вы в течение последнего часа?</p> <div class="options"> <input type="radio" id="smoking-yes" name="smoking_last_hour" value="yes"><label for="smoking-yes">Да</label> <input type="radio" id="smoking-no" name="smoking_last_hour" value="no" required><label for="smoking-no">Нет</label> </div> </div>
+            </div>
+
+            <div class="question-block">
+                <h2>Абсолютные противопоказания</h2>
+                <p style="font-size: 14px; color: var(--tg-theme-hint-color); margin-bottom: 15px;">Положительный ответ на любой из следующих вопросов означает, что вы не можете быть донором крови.</p>
+                <div class="question"> <p>15. Диагностированы ли у Вас ВИЧ/СПИД, сифилис, вирусные гепатиты B или C, туберкулез?</p> <div class="options"> <input type="radio" id="hiv-yes" name="has_hiv_or_hepatitis" value="yes"><label for="hiv-yes">Да</label> <input type="radio" id="hiv-no" name="has_hiv_or_hepatitis" value="no" required><label for="hiv-no">Нет</label> </div> </div>
+                <div class="question"> <p>16. Диагностированы ли у Вас онкологические заболевания или болезни крови?</p> <div class="options"> <input type="radio" id="cancer-yes" name="has_cancer_or_blood_disease" value="yes"><label for="cancer-yes">Да</label> <input type="radio" id="cancer-no" name="has_cancer_or_blood_disease" value="no" required><label for="cancer-no">Нет</label> </div> </div>
+                <div class="question"> <p>17. Есть ли у Вас серьезные хронические заболевания (гипертония II-III ст., ишемическая болезнь, бронхиальная астма, органические поражения ЦНС)?</p> <div class="options"> <input type="radio" id="chronic-yes" name="has_chronic_disease" value="yes"><label for="chronic-yes">Да</label> <input type="radio" id="chronic-no" name="has_chronic_disease" value="no" required><label for="chronic-no">Нет</label> </div> </div>
+            </div>
+
+            <!-- Скрытые поля для вопросов, которые не задаются напрямую -->
+            <input type="hidden" name="pressure" value="unknown">
+            <input type="hidden" name="hemoglobin_level" value="unknown">
+
             <div class="content-spacer"></div>
         </form>
     </div>
@@ -114,16 +113,6 @@
                 document.body.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
                 document.body.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f4f4f4');
             };
-
-            document.querySelectorAll('input[name="vaccine"]').forEach(radio => {
-                radio.addEventListener('change', event => {
-                    const vaccineTypeQuestion = document.getElementById('vaccine-type-question');
-                    const vaccineTypeRadios = vaccineTypeQuestion.querySelectorAll('input[type="radio"]');
-                    const shouldShow = event.target.value === 'yes';
-                    vaccineTypeQuestion.style.display = shouldShow ? 'block' : 'none';
-                    vaccineTypeRadios.forEach(r => r.required = shouldShow);
-                });
-            });
 
             const sendData = async () => {
                 const authString = tg.initData;
