@@ -541,7 +541,9 @@ async def process_new_value(message: types.Message, state: FSMContext, session: 
 
     try:
         # Преобразование типов для некоторых полей
-        if field_to_edit in ['telegram_id', 'points', 'graduation_year']:
+        if field_to_edit == 'full_name':
+            pass
+        elif field_to_edit in ['telegram_id', 'points', 'graduation_year']:
             new_value = int(new_value)
         elif field_to_edit in ['is_blocked', 'is_dkm_donor']:
             new_value = new_value.lower() in ['true', '1', 'yes', 'да']
