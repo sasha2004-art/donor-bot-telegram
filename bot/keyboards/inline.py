@@ -15,7 +15,6 @@ def get_category_keyboard():
     """Клавиатура для выбора категории пользователя."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="Студент", callback_data="category_student"))
-    builder.row(InlineKeyboardButton(text="Сотрудник", callback_data="category_employee"))
     builder.row(InlineKeyboardButton(text="Внешний донор", callback_data="category_external"))
     return builder.as_markup()
 

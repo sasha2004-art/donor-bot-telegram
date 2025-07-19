@@ -217,10 +217,16 @@ async def process_event_registration(callback: types.CallbackQuery, session: Asy
 
     existing_registration = await event_requests.find_specific_registration(session, user.id, event.id)
     if existing_registration:
+        location_link = Text.format_location_link(event.location, event.latitude, event.longitude)
         await callback.message.edit_text(
-            text=Text.ALREADY_REGISTERED_FOR_EVENT.format(event_name=safe_event_name),
+            text=Text.ALREADY_REGISTERED_FOR_EVENT.format(
+                event_name=safe_event_name,
+                event_location=location_link,
+                blood_center_name=event.blood_center.name if event.blood_center else "Не указан"
+            ),
             reply_markup=get_reg_success_kbd(event.id),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
         await callback.answer()
         return
