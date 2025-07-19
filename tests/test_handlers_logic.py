@@ -66,13 +66,13 @@ class MockLocation:
 
 
 @pytest.mark.parametrize(
-    "scenario, user_inputs, expected_fsm_data",
+    "scenario, user_inputs, expected_db_data",
     [
         (
-            "mifi_standard_faculty",
+            "mifi_student_standard_faculty",
             [
                 ("callback", "category_student"),
-                ("callback", "university_mifi"), 
+                # Шага выбора университета нет, он определяется категорией
                 ("callback", "faculty_ИИКС"),
                 ("message", "Б20-505"),
                 ("callback", "gender_male"),
@@ -81,35 +81,40 @@ class MockLocation:
             {"category": "student", "university": "НИЯУ МИФИ", "faculty": "ИИКС", "study_group": "Б20-505"}
         ),
         (
-            "mifi_custom_faculty",
+            "mifi_student_custom_faculty",
             [
-                ("callback", "category_employee"),
-                ("callback", "university_mifi"),
+                ("callback", "category_student"),
                 ("callback", "faculty_Other"),
-                ("message", "Институт ЛаПлаз"),
+                ("message", "Институт ЛаПлаз"), # Ввод кастомного факультета
                 ("message", "Л2-101"),
                 ("callback", "gender_female"),
                 ("callback", "consent_given"),
             ],
-            {"category": "employee", "university": "НИЯУ МИФИ", "faculty": "Институт ЛаПлаз", "study_group": "Л2-101"}
+            {"category": "student", "university": "НИЯУ МИФИ", "faculty": "Институт ЛаПлаз", "study_group": "Л2-101"}
         ),
         (
-            "other_university_external_donor",
+            "mifi_employee",
             [
-                ("callback", "category_external"),
+                ("callback", "category_employee"),
+                # Для сотрудника сразу идет запрос пола, без факультета и группы
                 ("callback", "gender_male"),
                 ("callback", "consent_given"),
             ],
-            {
-                "category": "external",
-                "university": "Внешний донор", 
-                "faculty": "Не применимо", 
-                "study_group": "-"
-            }
+            {"category": "employee", "university": "НИЯУ МИФИ", "faculty": "Сотрудник", "study_group": "-"}
+        ),
+        (
+            "external_donor",
+            [
+                ("callback", "category_external"),
+                # Для внешнего донора сразу идет запрос пола
+                ("callback", "gender_female"),
+                ("callback", "consent_given"),
+            ],
+            {"category": "external", "university": "Внешний донор", "faculty": "Не применимо", "study_group": "-"}
         )
     ]
 )
-async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_data, session: AsyncSession):
+async def test_registration_fsm_scenarios(scenario, user_inputs, expected_db_data, session: AsyncSession):
     """
     Тестирует различные сценарии прохождения регистрации FSM (ОБНОВЛЕННАЯ ВЕРСИЯ).
     """
@@ -157,10 +162,10 @@ async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_da
     
     created_user = (await session.execute(select(User).where(User.telegram_id == 123))).scalar_one()
     assert created_user is not None
-    assert created_user.university == expected_fsm_data["university"]
-    assert created_user.faculty == expected_fsm_data["faculty"]
-    assert created_user.study_group == expected_fsm_data["study_group"]
-    assert created_user.category == expected_fsm_data["category"]
+    assert created_user.university == expected_db_data["university"]
+    assert created_user.faculty == expected_db_data["faculty"]
+    assert created_user.study_group == expected_db_data["study_group"]
+    assert created_user.category == expected_db_data["category"]
     assert created_user.consent_given is True
     assert created_user.full_name == "Тестовый Тест Тестович"
     assert created_user.telegram_username == "test_user_fsm"

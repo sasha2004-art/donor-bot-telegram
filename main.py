@@ -2,7 +2,7 @@ import asyncio
 import logging
 import uvicorn
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, Depends
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ValidationError
 import json
@@ -246,7 +246,14 @@ async def submit_survey_logic(session: AsyncSession, payload: SurveyPayload) -> 
     
     return chat_id_to_send, message_text, reply_markup
 
-async def submit_survey_endpoint(request: Request):
+from typing import AsyncGenerator
+
+# Создай эту функцию
+async def get_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_session_maker() as session:
+        yield session
+
+async def submit_survey_endpoint(request: Request, session: AsyncSession = Depends(get_session)):
     """
     API эндпоинт, который вызывает логику и затем отправляет сообщение.
     """
@@ -257,10 +264,8 @@ async def submit_survey_endpoint(request: Request):
         logger.error(f"Error processing survey submission: {e}")
         raise HTTPException(status_code=400, detail="Invalid payload")
 
-    chat_id, text, markup = None, None, None
-    async with async_session_maker() as session:
-        chat_id, text, markup = await submit_survey_logic(session, payload)
-        await session.commit()
+    chat_id, text, markup = await submit_survey_logic(session, payload)
+    await session.commit()
     
     if chat_id and text:
         try:

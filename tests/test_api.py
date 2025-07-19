@@ -15,18 +15,16 @@ async def override_get_session():
     async with TestSessionMaker() as session:
         yield session
 
-from main import async_session_maker as main_session_maker
+from main import app, get_session
+from tests.conftest import TestSessionMaker
 
-
-pytestmark = pytest.mark.asyncio
-
-from unittest.mock import patch
-from sqlalchemy.ext.asyncio import create_async_engine
-from tests.conftest import TEST_DATABASE_URL
+async def override_get_session():
+    async with TestSessionMaker() as session:
+        yield session
 
 @pytest_asyncio.fixture
 async def client():
-    app.dependency_overrides[main_session_maker] = override_get_session
+    app.dependency_overrides[get_session] = override_get_session
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
     app.dependency_overrides = {}
