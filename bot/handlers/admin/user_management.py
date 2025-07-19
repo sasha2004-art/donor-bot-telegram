@@ -548,9 +548,7 @@ async def process_new_value(message: types.Message, state: FSMContext, session: 
         elif field_to_edit in ['is_blocked', 'is_dkm_donor']:
             new_value = new_value.lower() in ['true', '1', 'yes', 'да']
 
-        setattr(user, field_to_edit, new_value)
-        session.add(user)
-        await session.commit()
+        await admin_requests.update_user_field(session, user_id, field_to_edit, new_value)
 
         await message.answer(f"✅ Поле '{field_to_edit}' успешно обновлено!")
         await state.clear()

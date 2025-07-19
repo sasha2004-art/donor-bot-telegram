@@ -39,6 +39,18 @@ async def get_users_page(session: AsyncSession, page: int = 1, page_size: int = 
     total_pages = math.ceil(total_count / page_size) if total_count > 0 else 1
     return items, total_pages
 
+async def update_user_field(session: AsyncSession, user_id: int, field_name: str, new_value: any):
+    """
+    Универсально обновляет поле для указанного пользователя.
+    """
+    if not hasattr(User, field_name):
+        logger.error(f"Attempted to update a non-existent field '{field_name}' for User.")
+        return
+
+    stmt = update(User).where(User.id == user_id).values({field_name: new_value})
+    await session.execute(stmt)
+    await session.commit()
+
 async def get_all_users(session: AsyncSession) -> list[User]:
     stmt = select(User).order_by(User.full_name)
     result = await session.execute(stmt)
