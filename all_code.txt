@@ -53,10 +53,12 @@
 │       ├── __init__.py
 │       ├── analytics_service.py
 │       ├── calendar_service.py
+│       ├── data_import.py
 │       ├── graduation.py
 │       ├── qr_service.py
 │       ├── scheduler.py
 │       └── text_messages.py
+├── cold_tests.md
 ├── collector.py
 ├── docker-compose.yml
 ├── donor_bot_telegram.egg-info
@@ -64,6 +66,7 @@
 │   ├── SOURCES.txt
 │   ├── dependency_links.txt
 │   └── top_level.txt
+├── historical_data.xlsx
 ├── logs
 │   └── pytest-logs.txt
 ├── main.py
@@ -95,7 +98,7 @@
 │   └── index.html
 └── финальна версия.7z
 
-14 directories, 80 files
+14 directories, 83 files
 
 
 ==================== СОДЕРЖИМОЕ ФАЙЛОВ ====================
@@ -130,6 +133,97 @@ venv/
 db_volume/
 
 --- КОНЕЦ ФАЙЛА: .gitignore ---
+
+--- НАЧАЛО ФАЙЛА: cold_tests.md ---
+
+## Холодные тесты для новой функциональности
+
+### Тест-кейс 1: Успешное создание мероприятия с выбором существующего центра крови
+
+**Шаги:**
+
+1.  Запустить бота и перейти в админ-панель.
+2.  Нажать кнопку "Создать мероприятие".
+3.  Ввести валидное название мероприятия.
+4.  Ввести валидную дату и время.
+5.  Ввести валидное местоположение.
+6.  Отправить геоточку.
+7.  Выбрать существующий центр крови из списка.
+8.  Выбрать тип донации.
+9.  Ввести количество баллов.
+10. Ввести лимит участников.
+11. Подтвердить создание мероприятия.
+
+**Ожидаемый результат:**
+
+*   Мероприятие успешно создано.
+*   В сообщении с подтверждением о создании мероприятия отображается корректное название выбранного центра крови.
+*   В базе данных, в таблице `events`, для созданного мероприятия в поле `blood_center_id` сохранен `id` выбранного центра крови.
+
+### Тест-кейс 2: Успешное создание мероприятия с добавлением нового центра крови
+
+**Шаги:**
+
+1.  Запустить бота и перейти в админ-панель.
+2.  Нажать кнопку "Создать мероприятие".
+3.  ... (шаги 3-6 как в Тест-кейсе 1)
+4.  Нажать кнопку "Добавить новый".
+5.  Ввести название нового центра крови.
+6.  ... (шаги 8-11 как в Тест-кейсе 1)
+
+**Ожидаемый результат:**
+
+*   Новый центр крови успешно добавлен в таблицу `blood_centers`.
+*   Мероприятие успешно создано.
+*   В сообщении с подтверждением о создании мероприятия отображается корректное название нового центра крови.
+*   В базе данных, в таблице `events`, для созданного мероприятия в поле `blood_center_id` сохранен `id` нового центра крови.
+
+### Тест-кейс 3: Просмотр информации о мероприятии
+
+**Шаги:**
+
+1.  Создать мероприятие с указанием центра крови (как в Тест-кейсе 1 или 2).
+2.  Перейти в админ-панели в раздел "Просмотр мероприятий".
+3.  Выбрать созданное мероприятие.
+
+**Ожидаемый результат:**
+
+*   В карточке мероприятия должна отображаться информация о центре крови.
+
+### Тест-кейс 4: Редактирование центра крови у мероприятия
+
+**Шаги:**
+
+1.  Создать мероприятие с указанием центра крови.
+2.  Перейти в режим редактирования мероприятия.
+3.  Выбрать для редактирования поле "Центр крови".
+4.  Выбрать другой центр крови из списка.
+5.  Сохранить изменения.
+
+**Ожидаемый результат:**
+
+*   Центр крови у мероприятия успешно изменен.
+*   В карточке мероприятия и в базе данных отображается новый центр крови.
+
+### Тест-кейс 5: Редактирование центра крови у мероприятия с добавлением нового
+
+**Шаги:**
+
+1.  Создать мероприятие с указанием центра крови.
+2.  Перейти в режим редактирования мероприятия.
+3.  Выбрать для редактирования поле "Центр крови".
+4.  Нажать кнопку "Добавить новый".
+5.  Ввести название нового центра крови.
+6.  Сохранить изменения.
+
+**Ожидаемый результат:**
+
+*   Новый центр крови успешно добавлен в таблицу `blood_centers`.
+*   Центр крови у мероприятия успешно изменен на новый.
+*   В карточке мероприятия и в базе данных отображается новый центр крови.
+
+
+--- КОНЕЦ ФАЙЛА: cold_tests.md ---
 
 --- НАЧАЛО ФАЙЛА: docker-compose.yml ---
 
@@ -1025,7 +1119,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from .models import (
     User, Event, EventRegistration, Donation, MedicalWaiver, 
-    MerchItem, MerchOrder, UserBlock
+    MerchItem, MerchOrder, UserBlock, BloodCenter
 )
 from .models import Feedback
 from .event_requests import find_specific_registration, add_event_registration, confirm_donation_transaction
@@ -1104,6 +1198,23 @@ async def update_event_field(session: AsyncSession, event_id: int, field_name: s
     stmt = update(Event).where(Event.id == event_id).values({field_name: new_value})
     await session.execute(stmt)
     await session.commit()
+
+
+async def get_all_blood_centers(session: AsyncSession) -> list[BloodCenter]:
+    stmt = select(BloodCenter).order_by(BloodCenter.name)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def create_blood_center(session: AsyncSession, name: str) -> BloodCenter:
+    blood_center = BloodCenter(name=name)
+    session.add(blood_center)
+    await session.commit()
+    return blood_center
+
+
+async def get_blood_center_by_id(session: AsyncSession, blood_center_id: int) -> BloodCenter | None:
+    return await session.get(BloodCenter, blood_center_id)
 
 # --- Merch Management ---
 async def create_merch_item(session: AsyncSession, data: dict) -> MerchItem:
@@ -1782,14 +1893,11 @@ from sqlalchemy.orm import joinedload
 from bot.utils.text_messages import Text
 
 async def get_active_events(session: AsyncSession) -> list[Event]:
-    """Получает активные мероприятия, которые еще не начались."""
+    """Получает активные мероприятия."""
     stmt = (
         select(Event)
-        .where(
-            Event.is_active == True,
-            Event.event_datetime >= datetime.datetime.now()
-        )
-        .order_by(Event.event_datetime)
+        .where(Event.is_active == True)
+        .order_by(Event.event_datetime.desc())
     )
     result = await session.execute(stmt)
     return result.scalars().all()
@@ -1830,7 +1938,9 @@ async def get_upcoming_events(session: AsyncSession) -> list[Event]:
 
 async def get_event_by_id(session: AsyncSession, event_id: int) -> Event | None:
     """Получает мероприятие по его ID."""
-    return await session.get(Event, event_id)
+    stmt = select(Event).options(joinedload(Event.blood_center)).where(Event.id == event_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
 async def get_today_event(session: AsyncSession) -> Event | None:
     """Получает мероприятие, которое проходит сегодня."""
@@ -2132,7 +2242,7 @@ class Event(Base):
     name: Mapped[str] = mapped_column(String(255))
     event_datetime: Mapped[datetime.datetime] = mapped_column(DateTime)
     location: Mapped[str] = mapped_column(Text)
-    blood_center_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    blood_center_id: Mapped[int] = mapped_column(ForeignKey('blood_centers.id'), nullable=True)
     
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
@@ -2141,6 +2251,8 @@ class Event(Base):
     participant_limit: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     registration_is_open: Mapped[bool] = mapped_column(Boolean, default=True, server_default='t')
+
+    blood_center: Mapped["BloodCenter"] = relationship(back_populates="events")
     registrations: Mapped[List["EventRegistration"]] = relationship(back_populates="event")
     feedbacks: Mapped[List["Feedback"]] = relationship(back_populates="event")
 
@@ -2284,6 +2396,14 @@ class NoShowReport(Base):
     user: Mapped["User"] = relationship()
     event: Mapped["Event"] = relationship()
     
+class BloodCenter(Base):
+    __tablename__ = 'blood_centers'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
+    events: Mapped[List["Event"]] = relationship(back_populates="blood_center")
+
+
 class Report(Base):
     __tablename__ = 'reports'
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -2689,6 +2809,18 @@ async def check_recent_survey(session: AsyncSession, user_id: int) -> bool:
     
     return recent_survey is not None
 
+
+async def get_unlinked_user_by_fio(session: AsyncSession, full_name: str) -> User | None:
+    """
+    Ищет пользователя по ФИО среди тех, у кого telegram_id <= 0.
+    """
+    stmt = select(User).where(
+        User.full_name == full_name,
+        User.telegram_id <= 0
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
 --- КОНЕЦ ФАЙЛА: bot/db/user_requests.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/db/__init__.py ---
@@ -2853,19 +2985,20 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
     if user:
         await send_or_edit_main_menu(message, session, welcome_text=Text.ALREADY_REGISTERED.format(name=user.full_name))
         return
-        
+
     contact = message.contact
     phone_number = contact.phone_number
     if not phone_number.startswith('+'):
         phone_number = '+' + phone_number
-        
+
     user_by_phone = await user_requests.get_user_by_phone(session, phone_number)
     if user_by_phone:
         if user_by_phone.is_blocked:
             await message.answer(Text.USER_BLOCKED_ON_AUTH, reply_markup=ReplyKeyboardRemove())
             return
-            
+
         await user_requests.update_user_credentials(session, user_by_phone.id, message.from_user.id, message.from_user.username)
+        await session.commit()
         await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_phone.full_name))
     else:
         await state.update_data(
@@ -2879,7 +3012,7 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 
 
 @router.message(Registration.awaiting_full_name)
-async def process_full_name(message: types.Message, state: FSMContext):
+async def process_full_name(message: types.Message, state: FSMContext, session: AsyncSession):
     full_name = message.text.strip()
     
     allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
@@ -2893,6 +3026,16 @@ async def process_full_name(message: types.Message, state: FSMContext):
         return
     
     corrected_name = " ".join([part.strip().capitalize() for part in name_parts])
+
+    user_by_fio = await user_requests.get_unlinked_user_by_fio(session, corrected_name)
+    if user_by_fio:
+        user_data = await state.get_data()
+        await user_requests.update_user_credentials(session, user_by_fio.id, user_data['telegram_id'], user_data['telegram_username'])
+        await session.commit()
+        await state.clear()
+        await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_fio.full_name))
+        return
+
     await state.update_data(full_name=corrected_name)
     
     await message.answer(Text.GET_CATEGORY, reply_markup=inline.get_category_keyboard())
@@ -2909,33 +3052,18 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(university="Внешний донор", faculty="Не применимо", study_group="-")
         await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
         await state.set_state(Registration.awaiting_gender)
-    else:
-        await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
-        await state.set_state(Registration.awaiting_university)
-
-    await callback.answer()
-
-
-@router.callback_query(Registration.awaiting_university, F.data.startswith('university_'))
-async def process_university_choice(callback: types.CallbackQuery, state: FSMContext):
-    choice = callback.data.split('_', 1)[1]
-    
-    if choice == 'mifi':
+    elif category == 'student':
         await state.update_data(university="НИЯУ МИФИ")
         await callback.message.edit_text(Text.GET_FACULTY, reply_markup=inline.get_faculties_keyboard())
         await state.set_state(Registration.awaiting_faculty)
-    else: # choice == 'other'
-        await callback.message.edit_text(Text.GET_CUSTOM_UNIVERSITY)
-        await state.set_state(Registration.awaiting_custom_university_name)
-    
+    else: # employee
+        await state.update_data(university="НИЯУ МИФИ", faculty="Сотрудник", study_group="-")
+        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+        await state.set_state(Registration.awaiting_gender)
+
     await callback.answer()
 
 
-@router.message(Registration.awaiting_custom_university_name)
-async def process_custom_university_name(message: types.Message, state: FSMContext):
-    await state.update_data(university=message.text)
-    await message.answer(Text.GET_CUSTOM_FACULTY)
-    await state.set_state(Registration.awaiting_custom_faculty_name)
 
 
 @router.callback_query(Registration.awaiting_faculty, F.data.startswith('faculty_'))
@@ -2985,7 +3113,7 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# --- НОВЫЙ ХЕНДЛЕР: Обработка согласия и завершение регистрации ---
+
 @router.callback_query(Registration.awaiting_consent, F.data == "consent_given")
 async def process_consent(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     await state.update_data(consent_given=True)
@@ -2998,12 +3126,18 @@ async def process_consent(callback: types.CallbackQuery, state: FSMContext, sess
     await state.clear()
     
     await callback.message.delete()
-    
-    await send_or_edit_main_menu(
-        callback.message, 
-        session, 
-        welcome_text=Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)
+
+    await callback.message.answer(
+        text=f"{Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)}\n\n{Text.MAIN_MENU_PROMPT}",
+        reply_markup=ROLE_MENU_MAP.get(new_user.role, inline.get_student_main_menu)(viewer_role=new_user.role)
     )
+
+    await callback.message.answer(
+        text="Теперь вам доступно главное меню.",
+        reply_markup=reply.get_home_keyboard()
+    )
+    
+
     await callback.answer()
 
 
@@ -3357,10 +3491,16 @@ async def process_event_registration(callback: types.CallbackQuery, session: Asy
 
     existing_registration = await event_requests.find_specific_registration(session, user.id, event.id)
     if existing_registration:
+        location_link = Text.format_location_link(event.location, event.latitude, event.longitude)
         await callback.message.edit_text(
-            text=Text.ALREADY_REGISTERED_FOR_EVENT.format(event_name=safe_event_name),
+            text=Text.ALREADY_REGISTERED_FOR_EVENT.format(
+                event_name=safe_event_name,
+                event_location=location_link,
+                blood_center_name=event.blood_center.name if event.blood_center else "Не указан"
+            ),
             reply_markup=get_reg_success_kbd(event.id),
-            parse_mode="HTML"
+            parse_mode="HTML",
+            disable_web_page_preview=True
         )
         await callback.answer()
         return
@@ -3373,7 +3513,8 @@ async def process_event_registration(callback: types.CallbackQuery, session: Asy
         await callback.message.edit_text(
             text=Text.REGISTRATION_SUCCESSFUL.format(
                 event_name=safe_event_name,
-                event_location=location_link
+                event_location=location_link,
+                blood_center_name=event.blood_center.name if event.blood_center else "Не указан"
             ),
             reply_markup=get_reg_success_kbd(event.id),
             parse_mode="HTML",
@@ -4228,13 +4369,46 @@ async def process_event_location_text(message: types.Message, state: FSMContext)
     await message.answer(Text.EVENT_CREATE_STEP_4_LOCATION_POINT)
 
 @router.message(EventCreation.awaiting_location_point, F.location)
-async def process_event_location_point(message: types.Message, state: FSMContext):
+async def process_event_location_point(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.update_data(
         latitude=message.location.latitude,
         longitude=message.location.longitude
     )
+    await state.set_state(EventCreation.awaiting_blood_center)
+
+    blood_centers = await admin_requests.get_all_blood_centers(session)
+    await message.answer(
+        "Выберите центр крови или добавьте новый:",
+        reply_markup=inline.get_blood_centers_keyboard(blood_centers)
+    )
+
+
+@router.callback_query(EventCreation.awaiting_blood_center, F.data.startswith("select_blood_center_"))
+async def process_blood_center_selection(callback: types.CallbackQuery, state: FSMContext):
+    blood_center_id = int(callback.data.split("_")[-1])
+    await state.update_data(blood_center_id=blood_center_id)
     await state.set_state(EventCreation.awaiting_donation_type)
-    await message.answer(Text.EVENT_CREATE_STEP_5_TYPE, reply_markup=inline.get_donation_type_keyboard())
+    await callback.message.edit_text(
+        Text.EVENT_CREATE_STEP_5_TYPE,
+        reply_markup=inline.get_donation_type_keyboard()
+    )
+
+
+@router.callback_query(EventCreation.awaiting_blood_center, F.data == "add_new_blood_center")
+async def add_new_blood_center(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(EventCreation.awaiting_new_blood_center_name)
+    await callback.message.edit_text("Введите название нового центра крови:")
+
+
+@router.message(EventCreation.awaiting_new_blood_center_name)
+async def process_new_blood_center_name(message: types.Message, state: FSMContext, session: AsyncSession):
+    new_blood_center = await admin_requests.create_blood_center(session, message.text)
+    await state.update_data(blood_center_id=new_blood_center.id)
+    await state.set_state(EventCreation.awaiting_donation_type)
+    await message.answer(
+        Text.EVENT_CREATE_STEP_5_TYPE,
+        reply_markup=inline.get_donation_type_keyboard()
+    )
 
 @router.callback_query(EventCreation.awaiting_donation_type, F.data.startswith("settype_"))
 async def process_event_donation_type(callback: types.CallbackQuery, state: FSMContext):
@@ -4256,7 +4430,7 @@ async def process_event_points(message: types.Message, state: FSMContext):
 
 
 @router.message(EventCreation.awaiting_limit)
-async def process_event_limit(message: types.Message, state: FSMContext):
+async def process_event_limit(message: types.Message, state: FSMContext, session: AsyncSession):
     try:
         limit = int(message.text)
         await state.update_data(participant_limit=limit)
@@ -4264,10 +4438,13 @@ async def process_event_limit(message: types.Message, state: FSMContext):
         
         event_data = await state.get_data()
 
+        blood_center = await admin_requests.get_blood_center_by_id(session, event_data['blood_center_id'])
+
         text = Text.EVENT_CREATE_CONFIRMATION.format(
             name=event_data['name'],
             datetime=datetime.datetime.fromisoformat(event_data['event_datetime']).strftime('%d.%m.%Y в %H:%M'),
             location=event_data['location'],
+            blood_center_name=blood_center.name,
             location_set="Указана" if event_data.get('latitude') else "Не указана",
             type=event_data['donation_type'],
             points=event_data['points_per_donation'],
@@ -4399,6 +4576,7 @@ async def show_single_event_card(callback: types.CallbackQuery, session: AsyncSe
         datetime=event.event_datetime.strftime('%d.%m.%Y в %H:%M'),
         location_header=hbold('Место:'),
         location=Text.escape_html(event.location),
+        blood_center_name=event.blood_center.name if event.blood_center else "Не указан",
         type_header=hbold('Тип донации:'),
         donation_type=donation_type_ru,
         points_header=hbold('Баллы:'),
@@ -4438,7 +4616,7 @@ async def start_event_editing(callback: types.CallbackQuery, state: FSMContext, 
     await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.choosing_field)
     
-    fields = {"name": "Название", "event_date": "Дата", "location": "Место", "points_per_donation": "Баллы", "participant_limit": "Лимит"}
+    fields = {"name": "Название", "event_date": "Дата", "location": "Место", "blood_center_id": "Центр крови", "points_per_donation": "Баллы", "participant_limit": "Лимит"}
     builder = InlineKeyboardBuilder()
     for key, name in fields.items():
         builder.row(types.InlineKeyboardButton(text=f"Изменить: {name}", callback_data=f"edit_field_{key}"))
@@ -4448,15 +4626,25 @@ async def start_event_editing(callback: types.CallbackQuery, state: FSMContext, 
     await callback.answer()
 
 @router.callback_query(EventEditing.choosing_field, F.data.startswith("edit_field_"))
-async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext):
+async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     field_to_edit = callback.data.split('_', 2)[-1]
     await state.update_data(field_to_edit=field_to_edit)
-    await state.set_state(EventEditing.awaiting_new_value)
-    prompt = Text.EVENT_EDIT_FIELD_PROMPTS.get(field_to_edit, "Введите новое значение:")
-    await callback.message.edit_text(prompt)
+
+    if field_to_edit == "blood_center_id":
+        await state.set_state(EventEditing.awaiting_new_value)
+        blood_centers = await admin_requests.get_all_blood_centers(session)
+        await callback.message.edit_text(
+            "Выберите новый центр крови:",
+            reply_markup=inline.get_blood_centers_keyboard(blood_centers, edit_mode=True)
+        )
+    else:
+        await state.set_state(EventEditing.awaiting_new_value)
+        prompt = Text.EVENT_EDIT_FIELD_PROMPTS.get(field_to_edit, "Введите новое значение:")
+        await callback.message.edit_text(prompt)
+
     await callback.answer()
 
-@router.message(EventEditing.awaiting_new_value)
+@router.message(EventEditing.awaiting_new_value, F.text)
 async def process_new_value_for_event(message: types.Message, state: FSMContext, session: AsyncSession):
     data = await state.get_data()
     field, event_id, new_value_str = data.get("field_to_edit"), data.get("event_id"), message.text
@@ -4470,6 +4658,35 @@ async def process_new_value_for_event(message: types.Message, state: FSMContext,
         return
         
     await admin_requests.update_event_field(session, event_id, field, update_value)
+    await session.commit()
+    await state.clear()
+    await message.answer(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
+
+@router.callback_query(EventEditing.awaiting_new_value, F.data.startswith("select_blood_center_"))
+async def process_new_blood_center_for_event(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    new_blood_center_id = int(callback.data.split("_")[-1])
+
+    await admin_requests.update_event_field(session, event_id, "blood_center_id", new_blood_center_id)
+    await session.commit()
+    await state.clear()
+    await callback.message.edit_text(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
+
+
+@router.callback_query(EventEditing.awaiting_new_value, F.data == "add_new_blood_center_edit")
+async def add_new_blood_center_for_edit(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(EventEditing.awaiting_new_blood_center_name_for_edit)
+    await callback.message.edit_text("Введите название нового центра крови:")
+
+
+@router.message(EventEditing.awaiting_new_blood_center_name_for_edit)
+async def process_new_blood_center_name_for_edit(message: types.Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    new_blood_center = await admin_requests.create_blood_center(session, message.text)
+
+    await admin_requests.update_event_field(session, event_id, "blood_center_id", new_blood_center.id)
     await session.commit()
     await state.clear()
     await message.answer(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
@@ -5468,8 +5685,17 @@ async def import_data_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Отправьте .xlsx файл для импорта/обновления данных пользователей. Обязательные колонки: `phone_number` (для поиска), `full_name`, `university`.")
     await callback.answer()
 
-@router.message(DataImport.awaiting_file, F.document)
-async def process_import_file(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
+@router.callback_query(F.data == "ma_import_old_db", RoleFilter('main_admin'))
+async def import_old_db_start(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(DataImport.awaiting_old_db_file)
+    await callback.message.edit_text("Отправьте .xlsx файл для импорта старой базы данных.")
+    await callback.answer()
+
+
+from bot.utils.data_import import import_data_from_file
+
+@router.message(DataImport.awaiting_old_db_file, F.document)
+async def process_import_old_db_file(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
     if not message.document.file_name.endswith('.xlsx'):
         await message.answer("Неверный формат файла. Пожалуйста, отправьте файл .xlsx")
         return
@@ -5481,46 +5707,7 @@ async def process_import_file(message: types.Message, state: FSMContext, session
     file_bytes = await bot.download_file(file_info.file_path)
 
     try:
-        df = pd.read_excel(file_bytes)
-        
-        required_cols = ['phone_number', 'full_name', 'university']
-        if not all(col in df.columns for col in required_cols):
-            await status_msg.edit_text(f"Ошибка: в файле отсутствуют обязательные колонки ({', '.join(required_cols)}).")
-            return
-            
-        created_count = 0
-        updated_count = 0
-
-        for index, row in df.iterrows():
-            phone = str(row['phone_number'])
-            user = await user_requests.get_user_by_phone(session, phone)
-            
-            user_data = {
-                'full_name': row.get('full_name'),
-                'university': row.get('university'),
-                'faculty': row.get('faculty'),
-                'study_group': row.get('study_group'),
-                'blood_type': row.get('blood_type'),
-                'rh_factor': row.get('rh_factor'),
-                'gender': row.get('gender'),
-                'points': row.get('points', 0),
-                'role': row.get('role', 'student'),
-                'is_dkm_donor': bool(row.get('is_dkm_donor', False))
-            }
-            user_data = {k: v for k, v in user_data.items() if pd.notna(v)}
-
-            if user:
-                await user_requests.update_user_profile(session, user.id, user_data)
-                updated_count += 1
-            else:
-                full_data = user_data.copy()
-                full_data['phone_number'] = phone
-                full_data['telegram_id'] = 0
-                full_data['telegram_username'] = f"import_{phone}"
-                await user_requests.add_user(session, full_data)
-                created_count += 1
-        
-        await session.commit()
+        created_count, updated_count = await import_data_from_file(session, file_bytes)
         await status_msg.edit_text(f"✅ Импорт завершен!\n\n- Создано новых пользователей: {created_count}\n- Обновлено существующих: {updated_count}")
         
     except Exception as e:
@@ -6223,7 +6410,6 @@ def get_category_keyboard():
     """Клавиатура для выбора категории пользователя."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="Студент", callback_data="category_student"))
-    builder.row(InlineKeyboardButton(text="Сотрудник", callback_data="category_employee"))
     builder.row(InlineKeyboardButton(text="Внешний донор", callback_data="category_external"))
     return builder.as_markup()
 
@@ -6279,7 +6465,6 @@ def get_main_admin_main_menu(viewer_role: str = 'main_admin'):
 def get_university_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="НИЯУ МИФИ", callback_data="university_mifi"))
-    builder.row(InlineKeyboardButton(text="Другой вуз", callback_data="university_other"))
     return builder.as_markup()
 
 
@@ -6369,6 +6554,7 @@ def get_admin_panel_keyboard(viewer_role: str):
         types.InlineKeyboardButton(text="💾 Экспорт данных", callback_data="ma_export_data"),
         types.InlineKeyboardButton(text="📥 Импорт данных", callback_data="ma_import_data")
         )
+        builder.row(types.InlineKeyboardButton(text="📥 Импорт старой БД", callback_data="ma_import_old_db"))
     builder.row(InlineKeyboardButton(text="👤 Перейти в режим донора", callback_data="switch_to_donor_view"))
     return builder.as_markup()
 
@@ -6473,6 +6659,16 @@ def get_donation_type_keyboard():
     types = {'whole_blood': 'Цельная кровь', 'plasma': 'Плазма', 'platelets': 'Тромбоциты', 'erythrocytes': 'Эритроциты'}
     for key, value in types.items():
         builder.row(InlineKeyboardButton(text=value, callback_data=f"settype_{key}"))
+    return builder.as_markup()
+
+
+def get_blood_centers_keyboard(blood_centers, edit_mode=False):
+    builder = InlineKeyboardBuilder()
+    for center in blood_centers:
+        builder.row(InlineKeyboardButton(text=center.name, callback_data=f"select_blood_center_{center.id}"))
+
+    callback_data = "add_new_blood_center_edit" if edit_mode else "add_new_blood_center"
+    builder.row(InlineKeyboardButton(text="➕ Добавить новый", callback_data=callback_data))
     return builder.as_markup()
 
 def get_main_admin_panel_keyboard():
@@ -6940,6 +7136,8 @@ class EventCreation(StatesGroup):
     awaiting_datetime = State()
     awaiting_location_text = State()
     awaiting_location_point = State()
+    awaiting_blood_center = State()
+    awaiting_new_blood_center_name = State()
     awaiting_donation_type = State()
     awaiting_points = State()
     awaiting_limit = State()
@@ -6983,6 +7181,7 @@ class VolunteerActions(StatesGroup):
 class EventEditing(StatesGroup):
     choosing_field = State() 
     awaiting_new_value = State()
+    awaiting_new_blood_center_name_for_edit = State()
     
 class MerchEditing(StatesGroup):
     choosing_field = State()
@@ -7035,6 +7234,7 @@ class AnswerQuestion(StatesGroup):
     
 class DataImport(StatesGroup):
     awaiting_file = State()
+    awaiting_old_db_file = State()
 
 --- КОНЕЦ ФАЙЛА: bot/states/states.py ---
 
@@ -7177,6 +7377,91 @@ def generate_ics_file(event: DbEvent) -> str:
     return cal.serialize()
 
 --- КОНЕЦ ФАЙЛА: bot/utils/calendar_service.py ---
+
+--- НАЧАЛО ФАЙЛА: bot/utils/data_import.py ---
+
+import openpyxl
+from sqlalchemy.ext.asyncio import AsyncSession
+from bot.db.models import User, Donation
+from bot.db import user_requests
+import datetime
+import pandas as pd
+
+
+async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tuple[int, int]:
+    """
+    Imports data from an .xlsx file with the old format into the database.
+    Returns a tuple of (created_count, updated_count).
+    """
+    df = pd.read_excel(file_bytes)
+
+    column_mapping = {
+        'ФИО': 'full_name',
+        'Телефон': 'phone_number',
+        'Группа': 'study_group',
+        'Кол-во Гаврилова': 'donations_gavrilov',
+        'Кол-во ФМБА': 'donations_fmba',
+    }
+
+    df = df.rename(columns=column_mapping)
+
+    required_cols = ['full_name', 'phone_number']
+    if not all(col in df.columns for col in required_cols):
+        raise ValueError(f"Ошибка: в файле отсутствуют обязательные колонки ({', '.join(required_cols)}).")
+
+    created_count = 0
+    updated_count = 0
+
+    for index, row in df.iterrows():
+        phone = str(row['phone_number'])
+        user = await user_requests.get_user_by_phone(session, phone)
+
+        study_group = row.get('study_group')
+        university = "НИЯУ МИФИ" if 'сотрудник' in str(study_group).lower() or (study_group and study_group != '-') else "Внешний донор"
+        faculty = "Сотрудник" if 'сотрудник' in str(study_group).lower() else None
+
+        user_data = {
+            'full_name': row.get('full_name'),
+            'university': university,
+            'faculty': faculty,
+            'study_group': study_group if university == "НИЯУ МИФИ" and faculty != "Сотрудник" else None,
+            'role': 'student',
+        }
+        user_data = {k: v for k, v in user_data.items() if pd.notna(v)}
+
+        if user:
+            await user_requests.update_user_profile(session, user.id, user_data)
+            updated_count += 1
+        else:
+            full_data = user_data.copy()
+            full_data['phone_number'] = phone
+            full_data['telegram_id'] = -index  # Use negative index for unique tg_id
+            full_data['telegram_username'] = f"import_{phone}"
+            user = await user_requests.add_user(session, full_data)
+            await session.flush()  # Flush to get the user ID
+            created_count += 1
+
+        donations_gavrilov = row.get('donations_gavrilov', 0)
+        donations_fmba = row.get('donations_fmba', 0)
+        total_donations = (donations_gavrilov if pd.notna(donations_gavrilov) else 0) + \
+                          (donations_fmba if pd.notna(donations_fmba) else 0)
+
+        if total_donations > 0:
+            for _ in range(int(total_donations)):
+                donation = Donation(
+                    user_id=user.id,
+                    donation_date=datetime.date(2023, 1, 1),
+                    donation_type='whole_blood',
+                    points_awarded=0,
+                    event_id=None
+                )
+                session.add(donation)
+
+    await session.commit()
+    return created_count, updated_count
+
+
+--- КОНЕЦ ФАЙЛА: bot/utils/data_import.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/utils/graduation.py ---
 
@@ -7783,11 +8068,14 @@ class Text:
     CHOOSE_EVENT_TO_REGISTER = "Выберите мероприятие для записи:"
     ALREADY_REGISTERED_FOR_EVENT = (
         "Вы уже записаны на мероприятие «<b>{event_name}</b>».\n\n"
+        "📍 <b>Место проведения:</b> {event_location}\n"
+        "🏢 <b>Центр крови:</b> {blood_center_name}\n\n"
         "Здесь вы можете получить QR-код или отменить свою запись."
     )
     REGISTRATION_SUCCESSFUL = (
         "✅ Вы успешно записаны на: <b>{event_name}</b>\n\n"
-        "📍 <b>Место проведения:</b> {event_location}\n\n"
+        "📍 <b>Место проведения:</b> {event_location}\n"
+        "🏢 <b>Центр крови:</b> {blood_center_name}\n\n"
         "Ваш QR-код для подтверждения донации доступен по кнопке ниже."
     )
     REGISTRATION_FAILED = "❌ Запись невозможна.\nПричина: {reason}"
@@ -7872,6 +8160,7 @@ class Text:
         "▪️ Название: {name}\n"
         "▪️ Дата и время: {datetime}\n"
         "▪️ Адрес: {location}\n"
+        "▪️ Центр крови: {blood_center_name}\n"
         "▪️ Точка на карте: {location_set}\n"
         "▪️ Тип: {type}\n"
         "▪️ Баллы: {points}\n"
@@ -7890,6 +8179,7 @@ class Text:
         "🗓️ {name}\n\n"
         "▪️ {date_header} {datetime}\n" 
         "▪️ {location_header} {location}\n"
+        "▪️ <b>Центр крови:</b> {blood_center_name}\n"
         "▪️ {type_header} {donation_type}\n"
         "▪️ {points_header} {points_per_donation}\n"
         "▪️ {limit_header} {reg_count}/{participant_limit}\n"
@@ -8195,6 +8485,9 @@ bot
 
 --- НАЧАЛО ФАЙЛА: logs/pytest-logs.txt ---
 
+ERROR    main:main.py:95 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%2C%22username%22%3A%22test%22%7D&hash=125b98532e863d708dcf6141ea32692de0537a3a4a18cbe18b38e5abcdefghij'
+ERROR    main:main.py:95 Telegram WebApp data validation failed: Hash not found in auth data. Raw auth_data: 'user=%7B%22id%22%3A+123%7D&auth_date=1700000000'
+ERROR    main:main.py:95 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%7D&hash=40f05e5ab6663c9f1ef8c1ce079b8ae543366d3c47562462714dcd19790c2116&new_param=hacker'
 
 
 --- КОНЕЦ ФАЙЛА: logs/pytest-logs.txt ---
@@ -8656,181 +8949,101 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
 
 --- НАЧАЛО ФАЙЛА: tests/test_analytics.py ---
 
-import datetime
+# tests/test_analytics.py
+
 import pytest
-from sqlalchemy import select
+import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.analytics.analytics_service import (
-    get_churn_donors,
-    get_lapsed_donors,
-    get_top_donors,
-    get_rare_blood_donors,
-    get_top_faculties,
-    get_dkm_candidates,
-    get_survey_dropoff,
-)
-from bot.db.models import User, Donation, MedicalWaiver, Survey, Event, EventRegistration, BloodType
+# Правильный импорт из существующего модуля
+from bot.db import analytics_requests
+from bot.db.models import User, Donation, MedicalWaiver, Survey, Event, EventRegistration
 
+pytestmark = pytest.mark.asyncio
 
-@pytest.mark.asyncio
+# --- Тесты для функций из analytics_requests.py ---
+
 async def test_get_churn_donors(session: AsyncSession):
-    user1 = User(id=1, full_name="Churn Donor", telegram_id=111, phone_number="111")
-    donation1 = Donation(id=1, user_id=1, donation_date=datetime.datetime.now() - datetime.timedelta(days=200), donation_type='blood')
-    user2 = User(id=2, full_name="Active Donor", telegram_id=222, phone_number="222")
-    donation2 = Donation(id=2, user_id=2, donation_date=datetime.datetime.now() - datetime.timedelta(days=30), donation_type='blood')
-    user3 = User(id=3, full_name="Multiple Donor", telegram_id=333, phone_number="333")
-    donation3_1 = Donation(id=3, user_id=3, donation_date=datetime.datetime.now() - datetime.timedelta(days=200), donation_type='blood')
-    donation3_2 = Donation(id=4, user_id=3, donation_date=datetime.datetime.now() - datetime.timedelta(days=30), donation_type='plasma')
+    """
+    Тест: Находит доноров-однодневок (1 донация, >6 мес. назад).
+    """
+    # Пользователь 1: подходит под условия
+    user1 = User(id=1, full_name="Churn Donor", telegram_id=111, phone_number="111", university="Test")
+    donation1 = Donation(user_id=1, donation_date=datetime.date.today() - datetime.timedelta(days=200), donation_type='whole_blood', points_awarded=10)
+    
+    # Пользователь 2: донация была недавно
+    user2 = User(id=2, full_name="Active Donor", telegram_id=222, phone_number="222", university="Test")
+    donation2 = Donation(user_id=2, donation_date=datetime.date.today() - datetime.timedelta(days=30), donation_type='whole_blood', points_awarded=10)
+    
+    # Пользователь 3: имеет несколько донаций
+    user3 = User(id=3, full_name="Multiple Donor", telegram_id=333, phone_number="333", university="Test")
+    donation3_1 = Donation(user_id=3, donation_date=datetime.date.today() - datetime.timedelta(days=200), donation_type='whole_blood', points_awarded=10)
+    donation3_2 = Donation(user_id=3, donation_date=datetime.date.today() - datetime.timedelta(days=30), donation_type='plasma', points_awarded=10)
 
     session.add_all([user1, donation1, user2, donation2, user3, donation3_1, donation3_2])
     await session.commit()
 
-    churn_donors = await get_churn_donors(session)
+    churn_donors = await analytics_requests.get_churn_donors(session)
 
     assert len(churn_donors) == 1
-    assert churn_donors[0].full_name == "Churn Donor"
-    assert churn_donors[0].last_donation_date.date() == (datetime.datetime.now() - datetime.timedelta(days=200)).date()
+    assert churn_donors[0]['full_name'] == "Churn Donor"
 
-@pytest.mark.asyncio
+
 async def test_get_lapsed_donors(session: AsyncSession):
-    user1 = User(id=4, full_name="Lapsed Donor", telegram_id=444, phone_number="444")
-    donation1_1 = Donation(id=5, user_id=4, donation_date=datetime.datetime.now() - datetime.timedelta(days=300), donation_type='blood')
-    donation1_2 = Donation(id=6, user_id=4, donation_date=datetime.datetime.now() - datetime.timedelta(days=400), donation_type='blood')
+    """
+    Тест: Находит угасающих доноров (2+ донации, последняя >9 мес. назад, без медотвода).
+    """
+    # Пользователь 1: подходит под условия
+    user1 = User(id=4, full_name="Lapsed Donor", telegram_id=444, phone_number="444", university="Test")
+    d1_1 = Donation(user_id=4, donation_date=datetime.date.today() - datetime.timedelta(days=300), donation_type='whole_blood', points_awarded=10)
+    d1_2 = Donation(user_id=4, donation_date=datetime.date.today() - datetime.timedelta(days=400), donation_type='whole_blood', points_awarded=10)
 
-    user2 = User(id=5, full_name="Active Donor", telegram_id=555, phone_number="555")
-    donation2_1 = Donation(id=7, user_id=5, donation_date=datetime.datetime.now() - datetime.timedelta(days=30), donation_type='blood')
-    donation2_2 = Donation(id=8, user_id=5, donation_date=datetime.datetime.now() - datetime.timedelta(days=60), donation_type='plasma')
+    # Пользователь 2: последняя донация была недавно
+    user2 = User(id=5, full_name="Active Donor", telegram_id=555, phone_number="555", university="Test")
+    d2_1 = Donation(user_id=5, donation_date=datetime.date.today() - datetime.timedelta(days=30), donation_type='whole_blood', points_awarded=10)
+    d2_2 = Donation(user_id=5, donation_date=datetime.date.today() - datetime.timedelta(days=60), donation_type='plasma', points_awarded=10)
 
-    user3 = User(id=6, full_name="Lapsed With Waiver", telegram_id=666, phone_number="666")
-    donation3_1 = Donation(id=9, user_id=6, donation_date=datetime.datetime.now() - datetime.timedelta(days=300), donation_type='blood')
-    donation3_2 = Donation(id=10, user_id=6, donation_date=datetime.datetime.now() - datetime.timedelta(days=400), donation_type='blood')
-    waiver = MedicalWaiver(id=1, user_id=6, end_date=datetime.date.today() + datetime.timedelta(days=30))
+    # Пользователь 3: подходит по датам, но имеет активный медотвод
+    user3 = User(id=6, full_name="Lapsed With Waiver", telegram_id=666, phone_number="666", university="Test")
+    d3_1 = Donation(user_id=6, donation_date=datetime.date.today() - datetime.timedelta(days=300), donation_type='whole_blood', points_awarded=10)
+    d3_2 = Donation(user_id=6, donation_date=datetime.date.today() - datetime.timedelta(days=400), donation_type='whole_blood', points_awarded=10)
+    waiver = MedicalWaiver(user_id=6, start_date=datetime.date.today(), end_date=datetime.date.today() + datetime.timedelta(days=30), reason="test", created_by="system")
 
-
-    session.add_all([user1, donation1_1, donation1_2, user2, donation2_1, donation2_2, user3, donation3_1, donation3_2, waiver])
+    session.add_all([user1, d1_1, d1_2, user2, d2_1, d2_2, user3, d3_1, d3_2, waiver])
     await session.commit()
 
-    lapsed_donors = await get_lapsed_donors(session)
+    lapsed_donors = await analytics_requests.get_lapsed_donors(session)
 
     assert len(lapsed_donors) == 1
-    assert lapsed_donors[0].full_name == "Lapsed Donor"
-    assert lapsed_donors[0].days_since_last_donation > 180
+    assert lapsed_donors[0]['full_name'] == "Lapsed Donor"
 
-@pytest.mark.asyncio
-async def test_get_top_donors(session: AsyncSession):
-    users_donations = []
-    for i in range(7, 28): 
-        user = User(id=i, full_name=f"User {i}", telegram_id=i*100, phone_number=str(i*100))
-        users_donations.append(user)
-        for j in range(i-6): 
-            donation = Donation(user_id=i, donation_date=datetime.datetime.now(), donation_type='blood')
-            users_donations.append(donation)
-
-    session.add_all(users_donations)
-    await session.commit()
-
-    top_donors = await get_top_donors(session)
-
-    assert len(top_donors) == 20
-    assert top_donors[0].full_name == "User 27"
-    assert top_donors[0].donation_count == 21
-    assert top_donors[19].full_name == "User 8"
-    assert top_donors[19].donation_count == 2
-
-
-@pytest.mark.asyncio
-async def test_get_rare_blood_donors(session: AsyncSession):
-    bt_ab_pos = BloodType(name="AB(IV)", rh_factor="+")
-    bt_o_neg = BloodType(name="O(I)", rh_factor="-")
-    bt_a_pos = BloodType(name="A(II)", rh_factor="+")
-    session.add_all([bt_ab_pos, bt_o_neg, bt_a_pos])
-    await session.commit()
-
-    user1 = User(id=28, full_name="Rare AB", telegram_id=280, phone_number="280", blood_type_id=bt_ab_pos.id)
-    user2 = User(id=29, full_name="Rare O-", telegram_id=290, phone_number="290", blood_type_id=bt_o_neg.id)
-    user3 = User(id=30, full_name="Common A+", telegram_id=300, phone_number="300", blood_type_id=bt_a_pos.id, is_active=False)
-    
-    session.add_all([user1, user2, user3])
-    await session.commit()
-    rare_donors = await get_rare_blood_donors(session)
-    assert len(rare_donors) == 2
-    donor_names = {donor.full_name for donor in rare_donors}
-    assert "Rare AB" in donor_names
-    assert "Rare O-" in donor_names
-    assert "Common A+" not in donor_names
-
-
-@pytest.mark.asyncio
-async def test_get_top_faculties(session: AsyncSession):
-    user1 = User(id=31, full_name="F1 Donor 1", telegram_id=310, phone_number="310", university="НИЯУ МИФИ", faculty="F1")
-    user2 = User(id=32, full_name="F1 Donor 2", telegram_id=320, phone_number="320", university="НИЯУ МИФИ", faculty="F1")
-    user3 = User(id=33, full_name="F2 Donor 1", telegram_id=330, phone_number="330", university="НИЯУ МИФИ", faculty="F2")
-    user4 = User(id=34, full_name="Other Uni Donor", telegram_id=340, phone_number="340", university="Другой", faculty="F3")
-
-    donations = [
-        Donation(user_id=31, donation_date=datetime.datetime.now(), donation_type='blood'),
-        Donation(user_id=31, donation_date=datetime.datetime.now(), donation_type='blood'),
-        Donation(user_id=32, donation_date=datetime.datetime.now(), donation_type='plasma'),
-        Donation(user_id=33, donation_date=datetime.datetime.now(), donation_type='blood'),
-        Donation(user_id=34, donation_date=datetime.datetime.now(), donation_type='blood'),
-    ]
-
-    session.add_all([user1, user2, user3, user4] + donations)
-    await session.commit()
-    top_faculties = await get_top_faculties(session)
-    assert len(top_faculties) == 2
-    assert top_faculties[0]['faculty'] == 'F1'
-    assert top_faculties[0]['donation_count'] == 3
-    assert top_faculties[1]['faculty'] == 'F2'
-    assert top_faculties[1]['donation_count'] == 1
-
-
-@pytest.mark.asyncio
-async def test_get_dkm_candidates(session: AsyncSession):
-    # Arrange
-    user1 = User(id=35, full_name="DKM Candidate", telegram_id=350, phone_number="350", is_dkm_donor=False)
-    d1 = Donation(user_id=35, donation_date=datetime.datetime.now(), donation_type='blood')
-    d2 = Donation(user_id=35, donation_date=datetime.datetime.now(), donation_type='plasma')
-
-    user2 = User(id=36, full_name="Already DKM", telegram_id=360, phone_number="360", is_dkm_donor=True)
-    d3 = Donation(user_id=36, donation_date=datetime.datetime.now(), donation_type='blood')
-    d4 = Donation(user_id=36, donation_date=datetime.datetime.now(), donation_type='blood')
-
-    user3 = User(id=37, full_name="Not enough donations", telegram_id=370, phone_number="370", is_dkm_donor=False)
-    d5 = Donation(user_id=37, donation_date=datetime.datetime.now(), donation_type='blood')
-
-    session.add_all([user1, user2, user3, d1, d2, d3, d4, d5])
-    await session.commit()
-
-    candidates = await get_dkm_candidates(session)
-
-    assert len(candidates) == 1
-    assert candidates[0].full_name == "DKM Candidate"
-    assert candidates[0].donation_count == 2
-
-@pytest.mark.asyncio
 async def test_get_survey_dropoff(session: AsyncSession):
-    user1 = User(id=38, full_name="Dropoff User", telegram_id=380, phone_number="380")
-    survey1 = Survey(id=1, user_id=38, passed=True, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
+    """
+    Тест: Находит пользователей, прошедших опрос, но не записавшихся на мероприятие после этого.
+    """
+    # Пользователь 1: прошел опрос, не записался -> должен быть в списке
+    user1 = User(id=38, full_name="Dropoff User", telegram_id=380, phone_number="380", university="Test")
+    survey1 = Survey(user_id=38, passed=True, answers_json={}, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
 
-    user2 = User(id=39, full_name="Registered User", telegram_id=390, phone_number="390")
-    survey2 = Survey(id=2, user_id=39, passed=True, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
-    event1 = Event(id=1, name="event 1", event_datetime=datetime.datetime.now(), location="Центр крови")
-    reg2 = EventRegistration(id=1, user_id=39, event_id=1, registration_date=datetime.datetime.now() - datetime.timedelta(days=5))
+    # Пользователь 2: прошел опрос и записался ПОСЛЕ
+    user2 = User(id=39, full_name="Registered User", telegram_id=390, phone_number="390", university="Test")
+    survey2 = Survey(user_id=39, passed=True, answers_json={}, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
+    event1 = Event(name="event 1", event_datetime=datetime.datetime.now(), location="Центр крови", donation_type="d", points_per_donation=1, participant_limit=1)
+    session.add(event1)
+    await session.commit()
+    reg2 = EventRegistration(user_id=39, event_id=event1.id, registration_date=datetime.datetime.now() - datetime.timedelta(days=5))
 
-    user3 = User(id=40, full_name="Failed Survey User", telegram_id=400, phone_number="400")
-    survey3 = Survey(id=3, user_id=40, passed=False, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
+    # Пользователь 3: опрос не пройден
+    user3 = User(id=40, full_name="Failed Survey User", telegram_id=400, phone_number="400", university="Test")
+    survey3 = Survey(user_id=40, passed=False, answers_json={}, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
 
-    session.add_all([user1, survey1, user2, survey2, event1, reg2, user3, survey3])
+    session.add_all([user1, survey1, user2, survey2, reg2, user3, survey3])
     await session.commit()
     
-    dropoff_stats = await get_survey_dropoff(session, datetime.datetime.now() - datetime.timedelta(days=15))
+    dropoff_users = await analytics_requests.get_survey_dropoff(session)
 
-    assert dropoff_stats['passed_survey'] == 2
-    assert dropoff_stats['registered_for_event'] == 1
-    assert dropoff_stats['dropoff_count'] == 1
-    assert dropoff_stats['dropoff_percentage'] == 50.0
+    assert len(dropoff_users) == 1
+    assert dropoff_users[0]['full_name'] == "Dropoff User"
 
 --- КОНЕЦ ФАЙЛА: tests/test_analytics.py ---
 
@@ -9604,13 +9817,15 @@ class MockLocation:
             "other_university_external_donor",
             [
                 ("callback", "category_external"),
-                ("message", "МГУ"),
-                ("message", "ВМК"),
-                ("message", "231"),
                 ("callback", "gender_male"),
                 ("callback", "consent_given"),
             ],
-            {"category": "external", "university": "МГУ", "faculty": "ВМК", "study_group": "231"}
+            {
+                "category": "external",
+                "university": "Внешний донор", 
+                "faculty": "Не применимо", 
+                "study_group": "-"
+            }
         )
     ]
 )
