@@ -53,7 +53,7 @@ async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tup
         else:
             full_data = user_data.copy()
             full_data['phone_number'] = phone
-            full_data['telegram_id'] = 0
+            full_data['telegram_id'] = -index  # Use negative index for unique tg_id
             full_data['telegram_username'] = f"import_{phone}"
             user = await user_requests.add_user(session, full_data)
             await session.flush()  # Flush to get the user ID
