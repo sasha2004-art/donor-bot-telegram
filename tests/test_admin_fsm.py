@@ -140,7 +140,7 @@ async def test_event_editing_fsm_full_path(session: AsyncSession, mocker):
     await event_handlers.start_event_editing(callback_start, state, session)
     assert await state.get_state() == EventEditing.choosing_field
     callback_choose_field = MockCallbackQuery(data="edit_field_name", from_user_id=admin_id)
-    await event_handlers.choose_field_to_edit(callback_choose_field, state)
+    await event_handlers.choose_field_to_edit(callback_choose_field, state, session)
     assert await state.get_state() == EventEditing.awaiting_new_value
     message = MockMessage(text="Новое Шикарное Название", from_user_id=admin_id)
     await event_handlers.process_new_value_for_event(message, state, session)
@@ -226,7 +226,7 @@ async def test_admin_add_user_fsm_full_path(session: AsyncSession):
     assert created_user.university == "НИЯУ МИФИ"
     assert created_user.faculty == "ИИКС"
     assert created_user.study_group == "Б21-123"
-    assert created_user.telegram_id == 0
+    assert created_user.telegram_id == -1
     assert created_user.consent_given is True
 
 
