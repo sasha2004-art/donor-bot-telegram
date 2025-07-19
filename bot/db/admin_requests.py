@@ -1,3 +1,5 @@
+# ФАЙЛ: bot/db/admin_requests.py
+
 import datetime
 import logging # <-- ДОБАВИТЬ ЭТУ СТРОКУ
 from sqlalchemy import select, update, or_, func, String, delete, distinct, extract
@@ -42,6 +44,7 @@ async def get_users_page(session: AsyncSession, page: int = 1, page_size: int = 
 async def update_user_field(session: AsyncSession, user_id: int, field_name: str, new_value: any):
     """
     Универсально обновляет поле для указанного пользователя.
+    ВАЖНО: Эта функция больше не коммитит транзакцию.
     """
     if not hasattr(User, field_name):
         logger.error(f"Attempted to update a non-existent field '{field_name}' for User.")
@@ -49,12 +52,23 @@ async def update_user_field(session: AsyncSession, user_id: int, field_name: str
 
     stmt = update(User).where(User.id == user_id).values({field_name: new_value})
     await session.execute(stmt)
-    await session.commit()
+
 
 async def get_all_users(session: AsyncSession) -> list[User]:
     stmt = select(User).order_by(User.full_name)
     result = await session.execute(stmt)
     return result.scalars().all()
+
+# НОВОЕ: Функция удаления пользователя
+async def delete_user_by_id(session: AsyncSession, user_id: int) -> bool:
+    """Полностью удаляет пользователя и связанные с ним данные."""
+    user = await session.get(User, user_id)
+    if not user:
+        return False
+    await session.delete(user)
+    # SQLAlchemy благодаря `cascade` в моделях удалит связанные регистрации, заказы и т.д.
+    await session.commit()
+    return True
 
 async def change_user_role(session: AsyncSession, user_id: int, new_role: str):
     stmt = update(User).where(User.id == user_id).values(role=new_role)
@@ -82,6 +96,8 @@ async def unblock_user(session: AsyncSession, user_id: int):
     await session.execute(stmt)
     # log: # Можно добавить логирование разблокировки
     await session.commit()
+
+# --- (Остальной код файла без изменений) ---
 
 # --- Event Management ---
 async def create_event(session: AsyncSession, data: dict) -> Event:

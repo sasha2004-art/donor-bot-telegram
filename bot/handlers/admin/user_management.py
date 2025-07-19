@@ -1,3 +1,5 @@
+# ФАЙЛ: bot/handlers/admin/user_management.py
+
 import logging
 import datetime
 from aiogram import Router, F, types, Bot
@@ -24,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 # =============================================================================
-# --- 👥 УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ ---
+# --- 👥 УПРАВЛЕНИЕ ПОЛЬЗОВАТЕЛЯМИ (Без изменений до секции редактирования) ---
 # =============================================================================
 
 @router.callback_query(F.data == "admin_manage_users", RoleFilter('admin'))
@@ -514,90 +516,138 @@ async def start_user_editing(callback: types.CallbackQuery, state: FSMContext):
     )
     await callback.answer()
 
-@router.callback_query(F.data.startswith("edit_user_"), RoleFilter('admin'))
-async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext):
-    parts = callback.data.split('_')
-    user_id = int(parts[2])
-    field_to_edit = parts[3]
-
+@router.callback_query(UserEditing.choosing_field, F.data.startswith("edit_user_"))
+async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    try:
+        _prefix, _entity, user_id_str, field_to_edit = callback.data.split('_', 3)
+        user_id = int(user_id_str)
+    except ValueError:
+        logger.error(f"Could not parse callback data in choose_field_to_edit: {callback.data}")
+        await callback.answer("Ошибка. Попробуйте снова.", show_alert=True)
+        return
+    
     await state.update_data(field_to_edit=field_to_edit)
     await state.set_state(UserEditing.awaiting_new_value)
 
-    await callback.message.edit_text(f"Введите новое значение для поля '{field_to_edit}':")
+    # ИЗМЕНЕНИЕ: Специальный обработчик для поля "gender"
+    if field_to_edit == "gender":
+        await callback.message.edit_text(
+            "Выберите новый пол пользователя:",
+            reply_markup=inline.get_gender_selection_for_edit_keyboard(user_id)
+        )
+    else:
+        await callback.message.edit_text(f"Введите новое значение для поля '<code>{field_to_edit}</code>':", parse_mode="HTML")
+    
     await callback.answer()
 
-@router.message(UserEditing.awaiting_new_value)
-async def process_new_value(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
-    data = await state.get_data()
-    user_id = data['user_id']
-    field_to_edit = data['field_to_edit']
-    new_value = message.text
 
-    user = await user_requests.get_user_by_id(session, user_id)
-    if not user:
-        await message.answer(Text.USER_NOT_FOUND)
+@router.message(UserEditing.awaiting_new_value, F.text)
+async def process_new_value(message: types.Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    user_id = data.get('user_id')
+    field_to_edit = data.get('field_to_edit')
+    new_value_str = message.text
+
+    if not user_id or not field_to_edit:
+        await message.answer("Произошла ошибка состояния. Пожалуйста, начните заново.", reply_markup=inline.get_back_to_admin_panel_keyboard())
         await state.clear()
         return
 
     try:
-        # Преобразование типов для некоторых полей
-        if field_to_edit == 'full_name':
-            pass
-        elif field_to_edit in ['telegram_id', 'points', 'graduation_year']:
-            new_value = int(new_value)
-        elif field_to_edit in ['is_blocked', 'is_dkm_donor']:
-            new_value = new_value.lower() in ['true', '1', 'yes', 'да']
+        if field_to_edit in ['is_blocked', 'is_dkm_donor']:
+            new_value = new_value_str.lower() in ['true', '1', 'yes', 'да', 'да,', 'д']
+        else:
+            new_value = new_value_str
 
         await admin_requests.update_user_field(session, user_id, field_to_edit, new_value)
-
-        await message.answer(f"✅ Поле '{field_to_edit}' успешно обновлено!")
-        await state.clear()
-
-        # Показываем обновленную карточку пользователя
-        # Сначала удаляем предыдущее сообщение, затем отправляем новое
-        try:
-            await message.delete() # Удаляем сообщение с вводом нового значения
-        except Exception:
-            pass # Не страшно, если не получилось удалить
-
-        # Получаем обновленные данные и отправляем новую карточку
-        updated_user = await user_requests.get_user_by_id(session, user_id)
-        viewer = await user_requests.get_user_by_tg_id(session, message.from_user.id)
-
-        block_status = "ЗАБЛОКИРОВАН" if updated_user.is_blocked else "Активен"
-        text = "\n".join([
-            hbold(Text.USER_CARD_HEADER.format(full_name=updated_user.full_name)),
-            "",
-            Text.USER_CARD_TEMPLATE.format(
-                full_name=Text.escape_html(updated_user.full_name),
-                telegram_id=updated_user.telegram_id,
-                username=Text.escape_html(updated_user.telegram_username or 'не указан'),
-                phone_number=updated_user.phone_number,
-                role=updated_user.role,
-                points=updated_user.points,
-                block_status=block_status
-            )
-        ])
-
-        await message.answer(
-            text,
-            reply_markup=inline.get_user_management_keyboard(
-                target_user_id=updated_user.id,
-                target_user_role=updated_user.role,
-                viewer_role=viewer.role,
-                is_blocked=updated_user.is_blocked
-            ),
-            parse_mode="HTML"
-        )
-
-    except (ValueError, TypeError) as e:
-        await message.answer(f"❌ Ошибка ввода. Неверный формат для поля '{field_to_edit}'.\n{e}")
+        await session.commit()
+        
+        await message.answer(f"✅ Поле '<code>{field_to_edit}</code>' успешно обновлено!", parse_mode="HTML")
+    
     except Exception as e:
         await session.rollback()
+        logger.error(f"Failed to update user field '{field_to_edit}' for user {user_id}: {e}", exc_info=True)
         await message.answer(f"❌ Произошла ошибка при обновлении: {e}")
         await state.clear()
-        
-        
+        return
+
+    await state.clear()
+    
+    fake_callback = types.CallbackQuery(
+        id=str(message.message_id),
+        from_user=message.from_user,
+        chat_instance="fake",
+        message=message,
+        data=f"admin_show_user_{user_id}"
+    )
+    await show_single_user_card(fake_callback, session)
+
+# НОВЫЙ ОБРАБОТЧИК: Для кнопок выбора пола
+@router.callback_query(UserEditing.awaiting_new_value, F.data.startswith("set_gender_"))
+async def set_user_gender(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    try:
+        _prefix, _entity, user_id_str, new_gender = callback.data.split('_')
+        user_id = int(user_id_str)
+    except ValueError:
+        logger.error(f"Could not parse callback data in set_user_gender: {callback.data}")
+        await callback.answer("Ошибка. Попробуйте снова.", show_alert=True)
+        return
+
+    try:
+        await admin_requests.update_user_field(session, user_id, "gender", new_gender)
+        await session.commit()
+        await callback.answer(f"✅ Пол успешно изменен на '{'Мужской' if new_gender == 'male' else 'Женский'}'!")
+    except Exception as e:
+        await session.rollback()
+        logger.error(f"Failed to update user gender for user {user_id}: {e}", exc_info=True)
+        await callback.answer(f"❌ Произошла ошибка при обновлении: {e}", show_alert=True)
+        return
+    finally:
+        await state.clear()
+
+    # Показываем обновленную карточку
+    await show_single_user_card(callback, session)
+
+# --- НОВЫЕ ОБРАБОТЧИКИ: Удаление пользователя ---
+@router.callback_query(F.data.startswith("admin_delete_user_"), RoleFilter('main_admin'))
+async def ask_for_user_deletion(callback: types.CallbackQuery, session: AsyncSession):
+    user_id = int(callback.data.split('_')[-1])
+    user = await user_requests.get_user_by_id(session, user_id)
+    if not user:
+        await callback.answer(Text.USER_NOT_FOUND, show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        f"🗑️ <b>Вы уверены, что хотите удалить пользователя?</b>\n\n"
+        f"<b>ФИО:</b> {user.full_name}\n"
+        f"<b>ID:</b> <code>{user.telegram_id}</code>\n\n"
+        f"<b>Это действие необратимо и удалит все связанные данные (регистрации, донации, заказы).</b>",
+        reply_markup=inline.get_user_deletion_confirmation_keyboard(user_id),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("admin_confirm_delete_user_"), RoleFilter('main_admin'))
+async def confirm_user_deletion(callback: types.CallbackQuery, session: AsyncSession):
+    user_id = int(callback.data.split('_')[-1])
+    
+    # Сохраним имя для сообщения, пока пользователь не удален
+    user_to_delete = await user_requests.get_user_by_id(session, user_id)
+    if not user_to_delete:
+        await callback.answer("Пользователь уже удален.", show_alert=True)
+        await manage_users_main_menu(callback)
+        return
+    user_name = user_to_delete.full_name
+
+    success = await admin_requests.delete_user_by_id(session, user_id)
+
+    if success:
+        await callback.answer(f"Пользователь {user_name} удален.", show_alert=True)
+        # Возвращаемся в главное меню управления пользователями
+        await manage_users_main_menu(callback)
+    else:
+        await callback.answer("Не удалось удалить пользователя. Возможно, он уже был удален.", show_alert=True)
+        await show_single_user_card(callback, session)
         
         
 @router.callback_query(F.data == "admin_add_user_start", RoleFilter('admin'))
