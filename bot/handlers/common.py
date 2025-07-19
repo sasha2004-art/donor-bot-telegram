@@ -238,7 +238,7 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-# --- НОВЫЙ ХЕНДЛЕР: Обработка согласия и завершение регистрации ---
+
 @router.callback_query(Registration.awaiting_consent, F.data == "consent_given")
 async def process_consent(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     await state.update_data(consent_given=True)
@@ -251,12 +251,18 @@ async def process_consent(callback: types.CallbackQuery, state: FSMContext, sess
     await state.clear()
     
     await callback.message.delete()
-    
-    await send_or_edit_main_menu(
-        callback.message, 
-        session, 
-        welcome_text=Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)
+
+    await callback.message.answer(
+        text=f"{Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)}\n\n{Text.MAIN_MENU_PROMPT}",
+        reply_markup=ROLE_MENU_MAP.get(new_user.role, inline.get_student_main_menu)(viewer_role=new_user.role)
     )
+
+    await callback.message.answer(
+        # text="Теперь вам доступно главное меню.",
+        reply_markup=reply.get_home_keyboard()
+    )
+    
+
     await callback.answer()
 
 

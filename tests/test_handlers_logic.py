@@ -96,13 +96,15 @@ class MockLocation:
             "other_university_external_donor",
             [
                 ("callback", "category_external"),
-                ("message", "МГУ"),
-                ("message", "ВМК"),
-                ("message", "231"),
                 ("callback", "gender_male"),
                 ("callback", "consent_given"),
             ],
-            {"category": "external", "university": "МГУ", "faculty": "ВМК", "study_group": "231"}
+            {
+                "category": "external",
+                "university": "Внешний донор", 
+                "faculty": "Не применимо", 
+                "study_group": "-"
+            }
         )
     ]
 )
