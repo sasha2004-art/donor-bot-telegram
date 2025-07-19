@@ -162,33 +162,18 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(university="Внешний донор", faculty="Не применимо", study_group="-")
         await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
         await state.set_state(Registration.awaiting_gender)
-    else:
-        await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
-        await state.set_state(Registration.awaiting_university)
-
-    await callback.answer()
-
-
-@router.callback_query(Registration.awaiting_university, F.data.startswith('university_'))
-async def process_university_choice(callback: types.CallbackQuery, state: FSMContext):
-    choice = callback.data.split('_', 1)[1]
-    
-    if choice == 'mifi':
+    elif category == 'student':
         await state.update_data(university="НИЯУ МИФИ")
         await callback.message.edit_text(Text.GET_FACULTY, reply_markup=inline.get_faculties_keyboard())
         await state.set_state(Registration.awaiting_faculty)
-    else: # choice == 'other'
-        await callback.message.edit_text(Text.GET_CUSTOM_UNIVERSITY)
-        await state.set_state(Registration.awaiting_custom_university_name)
-    
+    else: # employee
+        await state.update_data(university="НИЯУ МИФИ", faculty="Сотрудник", study_group="-")
+        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+        await state.set_state(Registration.awaiting_gender)
+
     await callback.answer()
 
 
-@router.message(Registration.awaiting_custom_university_name)
-async def process_custom_university_name(message: types.Message, state: FSMContext):
-    await state.update_data(university=message.text)
-    await message.answer(Text.GET_CUSTOM_FACULTY)
-    await state.set_state(Registration.awaiting_custom_faculty_name)
 
 
 @router.callback_query(Registration.awaiting_faculty, F.data.startswith('faculty_'))

@@ -70,7 +70,6 @@ def get_main_admin_main_menu(viewer_role: str = 'main_admin'):
 def get_university_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="НИЯУ МИФИ", callback_data="university_mifi"))
-    builder.row(InlineKeyboardButton(text="Другой вуз", callback_data="university_other"))
     return builder.as_markup()
 
 
