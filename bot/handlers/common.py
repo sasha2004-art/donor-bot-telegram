@@ -123,6 +123,11 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 
         if not await user_requests.is_profile_complete(session, user_by_phone.id):
             await message.answer("Ваш профиль был найден, но он не полон. Давайте его дозаполним.")
+            await state.update_data(
+                phone_number=user_by_phone.phone_number,
+                telegram_id=message.from_user.id,
+                telegram_username=message.from_user.username
+            )
             await state.set_state(Registration.awaiting_full_name)
             await message.answer(Text.GET_FULL_NAME)
         else:
