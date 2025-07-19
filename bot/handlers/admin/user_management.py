@@ -527,7 +527,7 @@ async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext)
     await callback.answer()
 
 @router.message(UserEditing.awaiting_new_value)
-async def process_new_value(message: types.Message, state: FSMContext, session: AsyncSession):
+async def process_new_value(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
     data = await state.get_data()
     user_id = data['user_id']
     field_to_edit = data['field_to_edit']
@@ -554,12 +554,20 @@ async def process_new_value(message: types.Message, state: FSMContext, session: 
         await state.clear()
 
         # Показываем обновленную карточку пользователя
+        # Сначала удаляем предыдущее сообщение, затем отправляем новое
+        try:
+            await message.delete()
+        except Exception:
+            pass # Не страшно, если не получилось удалить
+
         # Создаем фейковый callback, чтобы переиспользовать функцию
+        # Важно: message теперь должен быть новым, поэтому создаем Mock
+        new_message = await bot.send_message(message.chat.id, "Обновляю данные...")
         fake_callback = types.CallbackQuery(
             id="fake_callback",
             from_user=message.from_user,
             chat_instance="fake_chat",
-            message=message,
+            message=new_message,
             data=f"admin_show_user_{user_id}"
         )
         await show_single_user_card(fake_callback, session)
