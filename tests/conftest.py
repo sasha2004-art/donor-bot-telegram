@@ -1,7 +1,6 @@
 # tests/conftest.py
 
 import pytest
-import pytest_asyncio
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
@@ -38,7 +37,7 @@ TestSessionMaker = async_sessionmaker(
 )
 
 
-@pytest_asyncio.fixture(scope="session", autouse=True)
+@pytest.fixture(scope="session", autouse=True)
 async def setup_database() -> AsyncGenerator[None, None]:
     """
     Фикстура уровня сессии для подготовки базы данных.
@@ -59,7 +58,7 @@ async def setup_database() -> AsyncGenerator[None, None]:
         await conn.run_sync(Base.metadata.drop_all)
 
 
-@pytest_asyncio.fixture(scope="function")
+@pytest.fixture(scope="function")
 async def session(setup_database: None) -> AsyncGenerator[AsyncSession, None]:
     """
     Основная фикстура для предоставления сессии в каждый тестовый кейс.
