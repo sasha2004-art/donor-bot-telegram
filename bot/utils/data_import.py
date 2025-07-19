@@ -4,6 +4,18 @@ from bot.db.models import User, Donation
 from bot.db import user_requests
 import datetime
 import pandas as pd
+import re
+
+
+def format_full_name(full_name: str) -> str:
+    """
+    Formats a full name by capitalizing the first letter of each word and removing extra spaces.
+    """
+    if not isinstance(full_name, str):
+        return full_name
+
+    full_name = re.sub(r'\s+', ' ', full_name).strip()
+    return ' '.join(word.capitalize() for word in full_name.split())
 
 
 async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tuple[int, int]:
@@ -41,7 +53,7 @@ async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tup
         faculty = "Сотрудник" if 'сотрудник' in str(study_group).lower() else None
 
         user_data = {
-            'full_name': row.get('full_name'),
+            'full_name': format_full_name(row.get('full_name')),
             'university': university,
             'faculty': faculty,
             'study_group': study_group if university == "НИЯУ МИФИ" and faculty != "Сотрудник" else None,
