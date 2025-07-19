@@ -262,6 +262,7 @@ class Text:
         "🗓️ {name}\n\n"
         "▪️ {date_header} {datetime}\n" 
         "▪️ {location_header} {location}\n"
+        "▪️ <b>Центр крови:</b> {blood_center_name}\n"
         "▪️ {type_header} {donation_type}\n"
         "▪️ {points_header} {points_per_donation}\n"
         "▪️ {limit_header} {reg_count}/{participant_limit}\n"

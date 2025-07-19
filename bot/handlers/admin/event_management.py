@@ -59,19 +59,46 @@ async def process_event_location_text(message: types.Message, state: FSMContext)
     await message.answer(Text.EVENT_CREATE_STEP_4_LOCATION_POINT)
 
 @router.message(EventCreation.awaiting_location_point, F.location)
-async def process_event_location_point(message: types.Message, state: FSMContext):
+async def process_event_location_point(message: types.Message, state: FSMContext, session: AsyncSession):
     await state.update_data(
         latitude=message.location.latitude,
         longitude=message.location.longitude
     )
-    await state.set_state(EventCreation.awaiting_blood_center_name)
-    await message.answer("Введите название центра крови (например, 'ЦК ФМБА России')")
+    await state.set_state(EventCreation.awaiting_blood_center)
 
-@router.message(EventCreation.awaiting_blood_center_name)
-async def process_event_blood_center_name(message: types.Message, state: FSMContext):
-    await state.update_data(blood_center_name=message.text)
+    blood_centers = await admin_requests.get_all_blood_centers(session)
+    await message.answer(
+        "Выберите центр крови или добавьте новый:",
+        reply_markup=inline.get_blood_centers_keyboard(blood_centers)
+    )
+
+
+@router.callback_query(EventCreation.awaiting_blood_center, F.data.startswith("select_blood_center_"))
+async def process_blood_center_selection(callback: types.CallbackQuery, state: FSMContext):
+    blood_center_id = int(callback.data.split("_")[-1])
+    await state.update_data(blood_center_id=blood_center_id)
     await state.set_state(EventCreation.awaiting_donation_type)
-    await message.answer(Text.EVENT_CREATE_STEP_5_TYPE, reply_markup=inline.get_donation_type_keyboard())
+    await callback.message.edit_text(
+        Text.EVENT_CREATE_STEP_5_TYPE,
+        reply_markup=inline.get_donation_type_keyboard()
+    )
+
+
+@router.callback_query(EventCreation.awaiting_blood_center, F.data == "add_new_blood_center")
+async def add_new_blood_center(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(EventCreation.awaiting_new_blood_center_name)
+    await callback.message.edit_text("Введите название нового центра крови:")
+
+
+@router.message(EventCreation.awaiting_new_blood_center_name)
+async def process_new_blood_center_name(message: types.Message, state: FSMContext, session: AsyncSession):
+    new_blood_center = await admin_requests.create_blood_center(session, message.text)
+    await state.update_data(blood_center_id=new_blood_center.id)
+    await state.set_state(EventCreation.awaiting_donation_type)
+    await message.answer(
+        Text.EVENT_CREATE_STEP_5_TYPE,
+        reply_markup=inline.get_donation_type_keyboard()
+    )
 
 @router.callback_query(EventCreation.awaiting_donation_type, F.data.startswith("settype_"))
 async def process_event_donation_type(callback: types.CallbackQuery, state: FSMContext):
@@ -101,11 +128,15 @@ async def process_event_limit(message: types.Message, state: FSMContext):
         
         event_data = await state.get_data()
 
+        event_data = await state.get_data()
+
+        blood_center = await admin_requests.get_blood_center_by_id(session, event_data['blood_center_id'])
+
         text = Text.EVENT_CREATE_CONFIRMATION.format(
             name=event_data['name'],
             datetime=datetime.datetime.fromisoformat(event_data['event_datetime']).strftime('%d.%m.%Y в %H:%M'),
             location=event_data['location'],
-            blood_center_name=event_data['blood_center_name'],
+            blood_center_name=blood_center.name,
             location_set="Указана" if event_data.get('latitude') else "Не указана",
             type=event_data['donation_type'],
             points=event_data['points_per_donation'],
@@ -237,6 +268,7 @@ async def show_single_event_card(callback: types.CallbackQuery, session: AsyncSe
         datetime=event.event_datetime.strftime('%d.%m.%Y в %H:%M'),
         location_header=hbold('Место:'),
         location=Text.escape_html(event.location),
+        blood_center_name=event.blood_center.name if event.blood_center else "Не указан",
         type_header=hbold('Тип донации:'),
         donation_type=donation_type_ru,
         points_header=hbold('Баллы:'),
@@ -276,7 +308,7 @@ async def start_event_editing(callback: types.CallbackQuery, state: FSMContext, 
     await state.update_data(event_id=event_id)
     await state.set_state(EventEditing.choosing_field)
     
-    fields = {"name": "Название", "event_date": "Дата", "location": "Место", "points_per_donation": "Баллы", "participant_limit": "Лимит"}
+    fields = {"name": "Название", "event_date": "Дата", "location": "Место", "blood_center_id": "Центр крови", "points_per_donation": "Баллы", "participant_limit": "Лимит"}
     builder = InlineKeyboardBuilder()
     for key, name in fields.items():
         builder.row(types.InlineKeyboardButton(text=f"Изменить: {name}", callback_data=f"edit_field_{key}"))
@@ -286,15 +318,25 @@ async def start_event_editing(callback: types.CallbackQuery, state: FSMContext, 
     await callback.answer()
 
 @router.callback_query(EventEditing.choosing_field, F.data.startswith("edit_field_"))
-async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext):
+async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     field_to_edit = callback.data.split('_', 2)[-1]
     await state.update_data(field_to_edit=field_to_edit)
-    await state.set_state(EventEditing.awaiting_new_value)
-    prompt = Text.EVENT_EDIT_FIELD_PROMPTS.get(field_to_edit, "Введите новое значение:")
-    await callback.message.edit_text(prompt)
+
+    if field_to_edit == "blood_center_id":
+        await state.set_state(EventEditing.awaiting_new_value)
+        blood_centers = await admin_requests.get_all_blood_centers(session)
+        await callback.message.edit_text(
+            "Выберите новый центр крови:",
+            reply_markup=inline.get_blood_centers_keyboard(blood_centers)
+        )
+    else:
+        await state.set_state(EventEditing.awaiting_new_value)
+        prompt = Text.EVENT_EDIT_FIELD_PROMPTS.get(field_to_edit, "Введите новое значение:")
+        await callback.message.edit_text(prompt)
+
     await callback.answer()
 
-@router.message(EventEditing.awaiting_new_value)
+@router.message(EventEditing.awaiting_new_value, F.text)
 async def process_new_value_for_event(message: types.Message, state: FSMContext, session: AsyncSession):
     data = await state.get_data()
     field, event_id, new_value_str = data.get("field_to_edit"), data.get("event_id"), message.text
@@ -311,6 +353,17 @@ async def process_new_value_for_event(message: types.Message, state: FSMContext,
     await session.commit()
     await state.clear()
     await message.answer(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
+
+@router.callback_query(EventEditing.awaiting_new_value, F.data.startswith("select_blood_center_"))
+async def process_new_blood_center_for_event(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    new_blood_center_id = int(callback.data.split("_")[-1])
+
+    await admin_requests.update_event_field(session, event_id, "blood_center_id", new_blood_center_id)
+    await session.commit()
+    await state.clear()
+    await callback.message.edit_text(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
 
 @router.callback_query(F.data.startswith("admin_event_participants_"), RoleFilter('admin'))
 async def get_event_participants(callback: types.CallbackQuery, session: AsyncSession):

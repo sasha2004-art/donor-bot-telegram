@@ -43,7 +43,7 @@ class Event(Base):
     name: Mapped[str] = mapped_column(String(255))
     event_datetime: Mapped[datetime.datetime] = mapped_column(DateTime)
     location: Mapped[str] = mapped_column(Text)
-    blood_center_name: Mapped[str] = mapped_column(String(255), nullable=True)
+    blood_center_id: Mapped[int] = mapped_column(ForeignKey('blood_centers.id'), nullable=True)
     
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
@@ -52,6 +52,8 @@ class Event(Base):
     participant_limit: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     registration_is_open: Mapped[bool] = mapped_column(Boolean, default=True, server_default='t')
+
+    blood_center: Mapped["BloodCenter"] = relationship(back_populates="events")
     registrations: Mapped[List["EventRegistration"]] = relationship(back_populates="event")
     feedbacks: Mapped[List["Feedback"]] = relationship(back_populates="event")
 
@@ -195,6 +197,14 @@ class NoShowReport(Base):
     user: Mapped["User"] = relationship()
     event: Mapped["Event"] = relationship()
     
+class BloodCenter(Base):
+    __tablename__ = 'blood_centers'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+
+    events: Mapped[List["Event"]] = relationship(back_populates="blood_center")
+
+
 class Report(Base):
     __tablename__ = 'reports'
     id: Mapped[int] = mapped_column(primary_key=True)

@@ -54,7 +54,9 @@ async def get_upcoming_events(session: AsyncSession) -> list[Event]:
 
 async def get_event_by_id(session: AsyncSession, event_id: int) -> Event | None:
     """Получает мероприятие по его ID."""
-    return await session.get(Event, event_id)
+    stmt = select(Event).options(joinedload(Event.blood_center)).where(Event.id == event_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
 
 async def get_today_event(session: AsyncSession) -> Event | None:
     """Получает мероприятие, которое проходит сегодня."""

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from .models import (
     User, Event, EventRegistration, Donation, MedicalWaiver, 
-    MerchItem, MerchOrder, UserBlock
+    MerchItem, MerchOrder, UserBlock, BloodCenter
 )
 from .models import Feedback
 from .event_requests import find_specific_registration, add_event_registration, confirm_donation_transaction
@@ -84,6 +84,23 @@ async def update_event_field(session: AsyncSession, event_id: int, field_name: s
     stmt = update(Event).where(Event.id == event_id).values({field_name: new_value})
     await session.execute(stmt)
     await session.commit()
+
+
+async def get_all_blood_centers(session: AsyncSession) -> list[BloodCenter]:
+    stmt = select(BloodCenter).order_by(BloodCenter.name)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def create_blood_center(session: AsyncSession, name: str) -> BloodCenter:
+    blood_center = BloodCenter(name=name)
+    session.add(blood_center)
+    await session.commit()
+    return blood_center
+
+
+async def get_blood_center_by_id(session: AsyncSession, blood_center_id: int) -> BloodCenter | None:
+    return await session.get(BloodCenter, blood_center_id)
 
 # --- Merch Management ---
 async def create_merch_item(session: AsyncSession, data: dict) -> MerchItem:
