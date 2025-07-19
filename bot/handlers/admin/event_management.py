@@ -120,14 +120,12 @@ async def process_event_points(message: types.Message, state: FSMContext):
 
 
 @router.message(EventCreation.awaiting_limit)
-async def process_event_limit(message: types.Message, state: FSMContext):
+async def process_event_limit(message: types.Message, state: FSMContext, session: AsyncSession):
     try:
         limit = int(message.text)
         await state.update_data(participant_limit=limit)
         await state.set_state(EventCreation.awaiting_confirmation)
         
-        event_data = await state.get_data()
-
         event_data = await state.get_data()
 
         blood_center = await admin_requests.get_blood_center_by_id(session, event_data['blood_center_id'])

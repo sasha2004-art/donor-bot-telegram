@@ -244,6 +244,7 @@ class Text:
         "▪️ Название: {name}\n"
         "▪️ Дата и время: {datetime}\n"
         "▪️ Адрес: {location}\n"
+        "▪️ Центр крови: {blood_center_name}\n"
         "▪️ Точка на карте: {location_set}\n"
         "▪️ Тип: {type}\n"
         "▪️ Баллы: {points}\n"
