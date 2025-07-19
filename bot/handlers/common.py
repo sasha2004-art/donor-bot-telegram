@@ -159,8 +159,9 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
     await state.update_data(category=category)
 
     if category == 'external':
-        await callback.message.edit_text(Text.GET_CUSTOM_UNIVERSITY)
-        await state.set_state(Registration.awaiting_custom_university_name)
+        await state.update_data(university="Внешний донор", faculty="Не применимо", study_group="-")
+        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+        await state.set_state(Registration.awaiting_gender)
     else:
         await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
         await state.set_state(Registration.awaiting_university)
@@ -242,8 +243,6 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext):
 async def process_consent(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     await state.update_data(consent_given=True)
     user_data = await state.get_data()
-    user_data.setdefault('faculty', 'Не указан')
-    user_data.setdefault('study_group', 'Не указана')
     
     user_data['graduation_year'] = calculate_graduation_year(user_data.get('study_group'))
 
