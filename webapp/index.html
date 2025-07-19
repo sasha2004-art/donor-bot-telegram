@@ -65,7 +65,7 @@
                 <div class="question"> <p>3. Болели ли Вы ОРВИ, гриппом или ангиной в течение последнего месяца?</p> <div class="options"> <input type="radio" id="health_issues-yes" name="health_issues_last_month" value="yes"><label for="health_issues-yes">Да</label> <input type="radio" id="health_issues-no" name="health_issues_last_month" value="no" required><label for="health_issues-no">Нет</label> </div> </div>
                 <div class="question"> <p>4. Есть ли у вас сейчас симптомы простуды (насморк, кашель, температура, боль в горле)?</p> <div class="options"> <input type="radio" id="symptoms-yes" name="symptoms" value="yes"><label for="symptoms-yes">Да</label> <input type="radio" id="symptoms-no" name="symptoms" value="no" required><label for="symptoms-no">Нет</label> </div> </div>
                 <div class="question"> <p>5. Удаляли ли Вам зуб в течение последних 10 дней?</p> <div class="options"> <input type="radio" id="tooth-yes" name="tooth_removal_last_10_days" value="yes"><label for="tooth-yes">Да</label> <input type="radio" id="tooth-no" name="tooth_removal_last_10_days" value="no" required><label for="tooth-no">Нет</label> </div> </div>
-                <div class="question"> <p>6. (Для женщин) Прошло ли 5 дней с окончания менструации?</p> <div class="options"> <input type="radio" id="menstruation-no" name="menstruation_last_5_days" value="no"><label for="menstruation-no">Нет</label> <input type="radio" id="menstruation-yes" name="menstruation_last_5_days" value="yes" required><label for="menstruation-yes">Да</label> </div> </div>
+        <div class="question" id="menstruation-question" style="display: none;"> <p>6. (Для женщин) Прошло ли 5 дней с окончания менструации?</p> <div class="options"> <input type="radio" id="menstruation-no" name="menstruation_last_5_days" value="no"><label for="menstruation-no">Нет</label> <input type="radio" id="menstruation-yes" name="menstruation_last_5_days" value="yes"><label for="menstruation-yes">Да</label> </div> </div>
             </div>
 
             <div class="question-block">
@@ -168,6 +168,21 @@
             tg.ready();
             tg.expand();
             applyTheme();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const gender = urlParams.get('gender');
+            const menstruationQuestion = document.getElementById('menstruation-question');
+            const menstruationRadio = document.querySelector('input[name="menstruation_last_5_days"]');
+
+            if (gender === 'female' && menstruationQuestion) {
+                menstruationQuestion.style.display = 'block';
+                if (menstruationRadio) {
+                    menstruationRadio.required = true;
+                }
+            } else if (menstruationRadio) {
+                // Если пол не женский, делаем вопрос необязательным
+                menstruationRadio.required = false;
+            }
             
             tg.MainButton.setText('Отправить ответы');
             tg.MainButton.onClick(sendData);

@@ -163,7 +163,8 @@ async def show_survey_or_events(callback: types.CallbackQuery, session: AsyncSes
             return
 
         cache_buster = int(time.time())
-        webapp_url = f"{ngrok_url}/webapp/index.html?v={cache_buster}"
+        # Добавляем пол пользователя в URL
+        webapp_url = f"{ngrok_url}/webapp/index.html?v={cache_buster}&gender={user.gender}"
         
         keyboard = types.InlineKeyboardMarkup(
             inline_keyboard=[[

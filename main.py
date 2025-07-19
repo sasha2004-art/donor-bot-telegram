@@ -109,7 +109,7 @@ def validate_telegram_data(auth_data: str) -> dict:
         logger.error(f"Telegram WebApp data validation failed: {e}. Raw auth_data: '{auth_data}'")
         raise HTTPException(status_code=403, detail=str(e))
 
-async def process_survey_rules(answers: SurveyAnswers) -> tuple[str, int | None, str]:
+async def process_survey_rules(answers: SurveyAnswers, user_gender: str) -> tuple[str, int | None, str]:
     # Абсолютные противопоказания
     if answers.age == 'no':
         return ('temp_waiver', 365000, "Возраст менее 18 лет.")
@@ -123,7 +123,7 @@ async def process_survey_rules(answers: SurveyAnswers) -> tuple[str, int | None,
         return ('temp_waiver', 30, "ОРВИ, грипп или ангина в течение последнего месяца.")
     if answers.tooth_removal_last_10_days == 'yes':
         return ('temp_waiver', 10, "Удаление зуба в последние 10 дней.")
-    if answers.menstruation_last_5_days == 'yes':
+    if user_gender == 'female' and answers.menstruation_last_5_days == 'no':
         return ('temp_waiver', 5, "Менструация (включая 5 дней после).")
     if answers.tattoo_or_piercing == 'yes':
         return ('temp_waiver', 120, "Наличие свежей татуировки/пирсинга (отвод на 4 месяца).")
@@ -219,8 +219,6 @@ async def submit_survey_logic(session: AsyncSession, payload: SurveyPayload) -> 
         raise
 
     answers = payload.survey_data
-    status, days, reason = await process_survey_rules(answers)
-    logger.info(f"submit_survey_logic: Survey rules processed. Status: {status}, Reason: {reason}")
     
     user = await user_requests.get_user_by_tg_id(session, user_tg_id)
     if not user and user_username:
@@ -235,6 +233,9 @@ async def submit_survey_logic(session: AsyncSession, payload: SurveyPayload) -> 
     if not user:
         logger.error(f"submit_survey_logic: User with tg_id {user_tg_id} or username {user_username} not found in DB.")
         raise HTTPException(status_code=404, detail="User not found in DB")
+
+    status, days, reason = await process_survey_rules(answers, user.gender)
+    logger.info(f"submit_survey_logic: Survey rules processed. Status: {status}, Reason: {reason}")
 
     logger.info(f"submit_survey_logic: Found user '{user.full_name}' (ID: {user.id}) in DB.")
     survey_record = Survey(user_id=user.id, passed=(status == 'ok'), verdict_text=reason, **answers.model_dump())
