@@ -37,6 +37,7 @@ class User(Base):
     blocks_received: Mapped[List["UserBlock"]] = relationship(foreign_keys="UserBlock.user_id", back_populates="blocked_user")
 
 
+
 class Event(Base):
     __tablename__ = 'events'
     id: Mapped[int] = mapped_column(primary_key=True)
