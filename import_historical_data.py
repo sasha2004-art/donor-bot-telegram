@@ -5,6 +5,10 @@ from bot.db.engine import async_session_maker
 from bot.db.models import User, Donation
 from bot.db import user_requests
 import datetime
+from bot.config_reader import config
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 async def main():
