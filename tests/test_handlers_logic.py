@@ -27,6 +27,7 @@ class MockMessage:
         self.location = location
         self.contact = contact
         self.message_id = 12345
+        self.reply_markup = None
         # Явно определяем все методы, которые могут быть вызваны
         self.answer = AsyncMock()
         self.edit_text = AsyncMock()
@@ -135,6 +136,7 @@ async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_da
             elif current_state_before == Registration.awaiting_university:
                 await common_handlers.process_university_choice(callback, state)
             elif current_state_before == Registration.awaiting_faculty:
+                callback.message.reply_markup = inline.get_faculties_keyboard()
                 await common_handlers.process_faculty(callback, state)
             elif current_state_before == Registration.awaiting_gender:
                 await common_handlers.process_gender(callback, state)

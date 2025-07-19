@@ -21,7 +21,11 @@ from main import async_session_maker as main_session_maker
 pytestmark = pytest.mark.asyncio
 
 @pytest_asyncio.fixture
-async def client():
+async def client(monkeypatch): # Добавляем monkeypatch
+    # Говорим конфигу, чтобы он всегда возвращал URL тестовой БД
+    monkeypatch.setattr(config, 'database_url', "sqlite+aiosqlite:///:memory:")
+
+    # Теперь приложение, запущенное через httpx, будет использовать SQLite
     app.dependency_overrides[main_session_maker] = override_get_session
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
