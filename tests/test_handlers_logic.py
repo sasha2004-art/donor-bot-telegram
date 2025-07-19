@@ -74,8 +74,6 @@ class MockLocation:
                 ("callback", "university_mifi"), 
                 ("callback", "faculty_ИИКС"),
                 ("message", "Б20-505"),
-                ("callback", "bloodtype_A(II)"),
-                ("callback", "rhfactor_+"),
                 ("callback", "gender_male"),
                 ("callback", "consent_given"),
             ],
@@ -89,8 +87,6 @@ class MockLocation:
                 ("callback", "faculty_Other"),
                 ("message", "Институт ЛаПлаз"),
                 ("message", "Л2-101"),
-                ("callback", "bloodtype_O(I)"),
-                ("callback", "rhfactor_-"),
                 ("callback", "gender_female"),
                 ("callback", "consent_given"),
             ],
@@ -103,8 +99,6 @@ class MockLocation:
                 ("message", "МГУ"),
                 ("message", "ВМК"),
                 ("message", "231"),
-                ("callback", "bloodtype_B(III)"),
-                ("callback", "rhfactor_+"),
                 ("callback", "gender_male"),
                 ("callback", "consent_given"),
             ],
@@ -140,10 +134,6 @@ async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_da
                 await common_handlers.process_university_choice(callback, state)
             elif current_state_before == Registration.awaiting_faculty:
                 await common_handlers.process_faculty(callback, state)
-            elif current_state_before == Registration.awaiting_blood_type:
-                await common_handlers.process_blood_type(callback, state)
-            elif current_state_before == Registration.awaiting_rh_factor:
-                await common_handlers.process_rh_factor(callback, state)
             elif current_state_before == Registration.awaiting_gender:
                 await common_handlers.process_gender(callback, state)
             elif current_state_before == Registration.awaiting_consent:
@@ -245,50 +235,6 @@ async def test_user_receives_location_link_on_registration(session: AsyncSession
     assert call_args['parse_mode'] == "HTML"
 
 
-async def test_event_creation_fsm_with_rare_blood_and_datetime(session: AsyncSession, mocker):
-    """
-    Тестирует полную цепочку FSM создания мероприятия с выбором редких групп и времени.
-    """
-    state = MockFSMContext()
-    bot = Mock(spec=Bot)
-    bot.send_message = AsyncMock(return_value=MockMessage())
-
-    await state.set_state(EventCreation.awaiting_name)
-    await event_management.process_event_name(MockMessage("Full FSM Event"), state)
-    
-    await event_management.process_event_datetime(MockMessage("10.10.2030 11:45"), state)
-    assert await state.get_state() == EventCreation.awaiting_location_text
-    
-    await event_management.process_event_location_text(MockMessage("Test location"), state)
-    await event_management.process_event_location_point(MockMessage(location=MockLocation(1,1)), state)
-    await event_management.process_event_donation_type(MockCallbackQuery(data="settype_plasma"), state)
-    await event_management.process_event_points(MockMessage("100"), state)
-    await event_management.process_event_bonus_points(MockMessage("50"), state)
-    
-    assert await state.get_state() == EventCreation.awaiting_rare_blood_types
-    
-    cb1 = MockCallbackQuery(data="select_rare_AB(IV) Rh-")
-    await event_management.process_rare_blood_type_selection(cb1, state)
-    cb1.message.edit_reply_markup.assert_called_once()
-    
-    cb_done = MockCallbackQuery(data="select_rare_done")
-    await event_management.process_rare_blood_type_selection(cb_done, state)
-    
-    assert await state.get_state() == EventCreation.awaiting_limit
-    
-    await event_management.process_event_limit(MockMessage("20"), state)
-    assert await state.get_state() == EventCreation.awaiting_confirmation
-
-    cb_confirm = MockCallbackQuery(data="confirm_create_event")
-    mocker.patch('bot.handlers.admin.event_management.send_new_event_notifications', new_callable=AsyncMock)
-    
-    await event_management.confirm_event_creation_and_notify(cb_confirm, state, session, bot)
-    
-    created_event = (await session.execute(select(Event).where(Event.name == "Full FSM Event"))).scalar_one()
-    assert created_event is not None
-    assert created_event.rare_blood_types == ["AB(IV) Rh-"]
-    assert created_event.event_datetime == datetime.datetime(2030, 10, 10, 11, 45)
-    
 async def test_add_to_calendar_handler(session: AsyncSession, mocker):
     """
     Тестирует, что хендлер 'add_to_calendar' корректно формирует и отправляет .ics файл.

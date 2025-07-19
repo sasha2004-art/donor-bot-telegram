@@ -56,8 +56,6 @@ async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_
 # --- Вспомогательные данные ---
 UNIVERSITIES = ["НИЯУ МИФИ"] * 8 + ["Другой ВУЗ"] * 2
 FACULTIES_MIFI = ["ИИКС", "ФИБС", "ИФТЭБ", "ИФИБ", "а", "ИнЯз", "ИПТИС"]
-BLOOD_TYPES = ["O(I)", "A(II)", "B(III)", "AB(IV)"]
-RH_FACTORS = ["+", "-"]
 GENDERS = ["male", "female"]
 DONATION_TYPES = ['whole_blood', 'plasma', 'platelets']
 
@@ -100,8 +98,6 @@ async def create_users(session: AsyncSession) -> list[User]:
             university=university,
             faculty=faculty,
             study_group=f"{random.choice(['Б', 'М', 'С'])}{random.randint(20, 23)}-{random.randint(101, 515)}",
-            blood_type=random.choice(BLOOD_TYPES),
-            rh_factor=random.choice(RH_FACTORS),
             gender=gender,
             points=random.randint(0, 500),
             role=role,
@@ -135,8 +131,6 @@ async def create_events(session: AsyncSession) -> tuple[list[Event], list[Event]
             longitude=37.491633,
             donation_type=random.choice(DONATION_TYPES),
             points_per_donation=random.randint(100, 250),
-            rare_blood_bonus_points=50,
-            rare_blood_types=[f"{random.choice(BLOOD_TYPES)} Rh-"],
             participant_limit=random.randint(50, 100),
             is_active=False,
             registration_is_open=False
@@ -153,8 +147,6 @@ async def create_events(session: AsyncSession) -> tuple[list[Event], list[Event]
             longitude=37.662128,
             donation_type=random.choice(DONATION_TYPES),
             points_per_donation=random.randint(100, 250),
-            rare_blood_bonus_points=50,
-            rare_blood_types=["AB(IV) Rh-", "O(I) Rh-"],
             participant_limit=random.randint(60, 120),
             is_active=True,
             registration_is_open=True

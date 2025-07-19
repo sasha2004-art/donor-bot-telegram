@@ -254,7 +254,6 @@ async def test_confirm_donation_transaction(session: AsyncSession):
         location="Test",
         donation_type="whole_blood",
         points_per_donation=50,
-        rare_blood_bonus_points=25,
         participant_limit=5
     )
     session.add_all([user, event])
@@ -269,7 +268,7 @@ async def test_confirm_donation_transaction(session: AsyncSession):
     # 3. Проверка
     # Проверяем начисление баллов
     updated_user = await session.get(User, user.id)
-    assert points == 50 # 50, т.к. кровь не редкая
+    assert points == 50
     assert updated_user.points == 50
     
     # Проверяем запись о донации
@@ -462,43 +461,6 @@ async def test_get_users_for_event_notification(session: AsyncSession, user_data
         assert user.id not in user_ids_to_notify, f"User {user.id} should NOT be in the list but was"
         
         
-        
-async def test_confirm_donation_transaction_with_rare_blood(session: AsyncSession):
-    """
-    Тестирует транзакцию подтверждения донации для пользователя с редкой группой крови.
-    """
-    # 1. Подготовка
-    # Редкая кровь: IV группа или любой отрицательный резус
-    user = User(phone_number="+7", telegram_id=1, full_name="Donor", gender="male", points=0, blood_type="AB(IV)", rh_factor="+", university="TestUni")
-    event_date = datetime.date.today()
-    event_dt = datetime.datetime.combine(event_date, datetime.time.min)
-    event = Event(
-        name="Transaction Test Event",
-        event_datetime=event_dt,
-        location="Test",
-        donation_type="whole_blood",
-        points_per_donation=50,
-        rare_blood_bonus_points=25, # Бонус за редкую кровь
-        participant_limit=5,
-        # --- ИСПРАВЛЕНИЕ: Явно указываем, что считаем редкой кровью в этом ивенте ---
-        rare_blood_types=["AB(IV) Rh+"] 
-    )
-    session.add_all([user, event])
-    await session.commit()
-    registration = EventRegistration(user_id=user.id, event_id=event.id)
-    session.add(registration)
-    await session.commit()
-
-    # 2. Выполнение
-    points, waiver_end_date = await event_requests.confirm_donation_transaction(session, user, registration)
-
-    # 3. Проверка
-    await session.refresh(user)
-    expected_points = 50 + 25 # Основные + бонус
-    assert points == expected_points
-    assert user.points == expected_points
-
-
 async def test_admin_create_manual_waiver(session: AsyncSession):
     """
     Тестирует создание медотвода администратором.
@@ -522,59 +484,6 @@ async def test_admin_create_manual_waiver(session: AsyncSession):
     assert waiver.reason == "Manual by admin"
     # Проверяем, что ID админа записался как строка
     assert waiver.created_by == str(admin.id)
-    
-@pytest.mark.parametrize(
-    "user_blood_type, user_rh, rare_types_in_event, should_get_bonus",
-    [
-        # Сценарий 1: Кровь пользователя в списке редких -> получает бонус
-        ("AB(IV)", "-", ["O(I) Rh-", "AB(IV) Rh-"], True),
-        # Сценарий 2: Кровь пользователя НЕ в списке редких -> не получает бонус
-        ("A(II)", "+", ["O(I) Rh-", "AB(IV) Rh-"], False),
-        # Сценарий 3: Список редких пуст -> не получает бонус
-        ("O(I)", "-", [], False),
-        # Сценарий 4: Список редких в БД None -> не получает бонус
-        ("A(II)", "+", None, False),
-    ]
-)
-async def test_confirm_donation_with_selective_rare_blood(
-    session: AsyncSession, user_blood_type, user_rh, rare_types_in_event, should_get_bonus
-):
-    """
-    Тестирует начисление бонусных баллов за выборочно указанные редкие группы крови.
-    """
-    # 1. Подготовка
-    user = User(
-        phone_number="+7", telegram_id=1, full_name="Donor", gender="male", points=0, 
-        university="TestUni", blood_type=user_blood_type, rh_factor=user_rh
-    )
-    event = Event(
-        name="Selective Bonus Event",
-        event_datetime=datetime.datetime.now(),
-        location="Test",
-        donation_type="whole_blood",
-        points_per_donation=50,
-        rare_blood_bonus_points=25,
-        participant_limit=5,
-        rare_blood_types=rare_types_in_event  # <-- Используем параметризованный список
-    )
-    session.add_all([user, event])
-    await session.commit()
-    registration = EventRegistration(user_id=user.id, event_id=event.id)
-    session.add(registration)
-    await session.commit()
-
-    # 2. Выполнение
-    points_awarded, _ = await event_requests.confirm_donation_transaction(session, user, registration)
-    
-    # 3. Проверка
-    await session.refresh(user)
-    
-    base_points = 50
-    bonus_points = 25
-    expected_points = base_points + (bonus_points if should_get_bonus else 0)
-    
-    assert points_awarded == expected_points
-    assert user.points == expected_points
     
     
 async def test_create_event_with_datetime(session: AsyncSession):
