@@ -233,7 +233,8 @@ async def process_event_registration(callback: types.CallbackQuery, session: Asy
         await callback.message.edit_text(
             text=Text.REGISTRATION_SUCCESSFUL.format(
                 event_name=safe_event_name,
-                event_location=location_link
+                event_location=location_link,
+                blood_center_name=event.blood_center.name if event.blood_center else "Не указан"
             ),
             reply_markup=get_reg_success_kbd(event.id),
             parse_mode="HTML",
