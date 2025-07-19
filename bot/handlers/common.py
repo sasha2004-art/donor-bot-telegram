@@ -106,19 +106,20 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
     if user:
         await send_or_edit_main_menu(message, session, welcome_text=Text.ALREADY_REGISTERED.format(name=user.full_name))
         return
-        
+
     contact = message.contact
     phone_number = contact.phone_number
     if not phone_number.startswith('+'):
         phone_number = '+' + phone_number
-        
+
     user_by_phone = await user_requests.get_user_by_phone(session, phone_number)
     if user_by_phone:
         if user_by_phone.is_blocked:
             await message.answer(Text.USER_BLOCKED_ON_AUTH, reply_markup=ReplyKeyboardRemove())
             return
-            
+
         await user_requests.update_user_credentials(session, user_by_phone.id, message.from_user.id, message.from_user.username)
+        await session.commit()
         await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_phone.full_name))
     else:
         await state.update_data(
@@ -132,7 +133,7 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 
 
 @router.message(Registration.awaiting_full_name)
-async def process_full_name(message: types.Message, state: FSMContext):
+async def process_full_name(message: types.Message, state: FSMContext, session: AsyncSession):
     full_name = message.text.strip()
     
     allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
@@ -146,6 +147,16 @@ async def process_full_name(message: types.Message, state: FSMContext):
         return
     
     corrected_name = " ".join([part.strip().capitalize() for part in name_parts])
+
+    user_by_fio = await user_requests.get_unlinked_user_by_fio(session, corrected_name)
+    if user_by_fio:
+        user_data = await state.get_data()
+        await user_requests.update_user_credentials(session, user_by_fio.id, user_data['telegram_id'], user_data['telegram_username'])
+        await session.commit()
+        await state.clear()
+        await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_fio.full_name))
+        return
+
     await state.update_data(full_name=corrected_name)
     
     await message.answer(Text.GET_CATEGORY, reply_markup=inline.get_category_keyboard())
