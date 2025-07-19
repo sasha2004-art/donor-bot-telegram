@@ -1,6 +1,7 @@
 import pytest
 import pandas as pd
 import io
+from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -16,7 +17,7 @@ async def test_create_full_backup_xlsx(session: AsyncSession):
     """Тест: Проверяет, что экспорт создает корректный XLSX файл."""
     # 1. Подготовка: Наполняем БД тестовыми данными
     user1 = User(id=1, phone_number="+1", telegram_id=1, full_name="User Export", university="Test", points=50)
-    donation1 = Donation(id=1, user_id=1, donation_date="2024-01-01", donation_type="test", points_awarded=50)
+    donation1 = Donation(id=1, user_id=1, donation_date=date(2024, 1, 1), donation_type="test", points_awarded=50)
     session.add_all([user1, donation1])
     await session.commit()
 

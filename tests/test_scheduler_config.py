@@ -29,8 +29,8 @@ def test_setup_scheduler_adds_all_jobs():
         # mock_scheduler_instance.start.assert_called_once()
         
         # Проверяем, что было добавлено правильное количество задач
-        # В вашем коде 8 вызовов add_job
-        assert mock_scheduler_instance.add_job.call_count == 8
+        # В вашем коде 9 вызовов add_job
+        assert mock_scheduler_instance.add_job.call_count == 9
 
         # Проверяем параметры одной из ключевых задач (например, проверка истечения медотводов)
         found_waiver_job_call = False

@@ -54,7 +54,8 @@ async def test_submit_survey_success_ok(client: AsyncClient, session: AsyncSessi
     payload = {"survey_data": answers, "auth_string": auth_string}
 
     # Мокаем отправку сообщения ботом, чтобы не было реальных сетевых вызовов
-    app.dependency_overrides[app.state.bot.send_message] = AsyncMock()
+    mock_bot = AsyncMock()
+    app.state.bot = mock_bot
     
     # 2. Выполнение
     response = await client.post("/api/submit_survey", json=payload)
@@ -73,7 +74,7 @@ async def test_submit_survey_success_ok(client: AsyncClient, session: AsyncSessi
 
     # Проверяем, что бот попытался отправить сообщение
     app.state.bot.send_message.assert_called_once()
-    app.dependency_overrides = {} # Очищаем мок
+    del app.state.bot # Очищаем мок
 
 async def test_submit_survey_failure_bad_payload(client: AsyncClient):
     """Тест: Отправка некорректного JSON."""
@@ -100,9 +101,11 @@ async def test_submit_survey_failure_user_not_found(client: AsyncClient, session
     payload = {"survey_data": {"feeling": "good", "weight": "no", "symptoms": "no", "tattoo": "no",
                         "tooth": "no", "vaccine": "no", "vaccine_type": None, "antibiotics": "no",
                         "aspirin": "no", "contact_hepatitis": "no", "diseases_absolute": "no",
-                        "diseases_chronic": "no", "travel": "no", "alcohol": "no"}, 
+                        "diseases_chronic": "no", "travel": "no", "alcohol": "no"},
                "auth_string": auth_string}
 
+    app.state.bot = AsyncMock()
     response = await client.post("/api/submit_survey", json=payload)
+    del app.state.bot
     # Ожидаем 404, так как пользователь не найден
     assert response.status_code == 404

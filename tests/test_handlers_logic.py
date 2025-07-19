@@ -120,7 +120,7 @@ async def test_registration_fsm_scenarios(scenario, user_inputs, expected_fsm_da
     assert await state.get_state() == Registration.awaiting_full_name
     
     fio_message = MockMessage("Тестовый Тест Тестович")
-    await common_handlers.process_full_name(fio_message, state)
+    await common_handlers.process_full_name(fio_message, state, session)
     assert await state.get_state() == Registration.awaiting_category
     
 
