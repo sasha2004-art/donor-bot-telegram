@@ -64,6 +64,12 @@ async def process_event_location_point(message: types.Message, state: FSMContext
         latitude=message.location.latitude,
         longitude=message.location.longitude
     )
+    await state.set_state(EventCreation.awaiting_blood_center_name)
+    await message.answer("Введите название центра крови (например, 'ЦК ФМБА России')")
+
+@router.message(EventCreation.awaiting_blood_center_name)
+async def process_event_blood_center_name(message: types.Message, state: FSMContext):
+    await state.update_data(blood_center_name=message.text)
     await state.set_state(EventCreation.awaiting_donation_type)
     await message.answer(Text.EVENT_CREATE_STEP_5_TYPE, reply_markup=inline.get_donation_type_keyboard())
 
@@ -99,6 +105,7 @@ async def process_event_limit(message: types.Message, state: FSMContext):
             name=event_data['name'],
             datetime=datetime.datetime.fromisoformat(event_data['event_datetime']).strftime('%d.%m.%Y в %H:%M'),
             location=event_data['location'],
+            blood_center_name=event_data['blood_center_name'],
             location_set="Указана" if event_data.get('latitude') else "Не указана",
             type=event_data['donation_type'],
             points=event_data['points_per_donation'],

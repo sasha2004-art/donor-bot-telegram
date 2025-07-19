@@ -16,6 +16,7 @@ class EventCreation(StatesGroup):
     awaiting_datetime = State()
     awaiting_location_text = State()
     awaiting_location_point = State()
+    awaiting_blood_center_name = State()
     awaiting_donation_type = State()
     awaiting_points = State()
     awaiting_limit = State()
