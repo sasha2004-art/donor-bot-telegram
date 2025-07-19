@@ -280,3 +280,18 @@ async def get_unlinked_user_by_fio(session: AsyncSession, full_name: str) -> Use
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
+async def is_profile_complete(session: AsyncSession, user_id: int) -> bool:
+    """
+    Проверяет, все ли обязательные поля в профиле пользователя заполнены.
+    """
+    user = await session.get(User, user_id)
+    if not user:
+        return False
+
+    required_fields = ['full_name', 'phone_number', 'university', 'faculty', 'study_group', 'gender']
+    for field in required_fields:
+        if not getattr(user, field):
+            return False
+    return True

@@ -120,7 +120,13 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 
         await user_requests.update_user_credentials(session, user_by_phone.id, message.from_user.id, message.from_user.username)
         await session.commit()
-        await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_phone.full_name))
+
+        if not await user_requests.is_profile_complete(session, user_by_phone.id):
+            await message.answer("Ваш профиль был найден, но он не полон. Давайте его дозаполним.")
+            await state.set_state(Registration.awaiting_full_name)
+            await message.answer(Text.GET_FULL_NAME)
+        else:
+            await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_phone.full_name))
     else:
         await state.update_data(
             phone_number=phone_number,
