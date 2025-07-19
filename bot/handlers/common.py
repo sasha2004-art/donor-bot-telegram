@@ -204,20 +204,12 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
 
 @router.callback_query(Registration.awaiting_faculty, F.data.startswith('faculty_'))
 async def process_faculty(callback: types.CallbackQuery, state: FSMContext):
-    faculty_code = callback.data.split('_', 1)[1]
+    faculty_name = callback.data.split('_', 1)[1]
     
-    if faculty_code == 'Other':
+    if faculty_name == 'Other':
         await callback.message.edit_text(Text.GET_CUSTOM_FACULTY)
         await state.set_state(Registration.awaiting_custom_faculty_name)
     else:
-        # Ищем текст кнопки по callback_data
-        faculty_name = "Неизвестно"
-        for row in callback.message.reply_markup.inline_keyboard:
-            for button in row:
-                if button.callback_data == callback.data:
-                    faculty_name = button.text
-                    break
-
         await state.update_data(faculty=faculty_name)
         user_data = await state.get_data()
         if user_data.get("category") == "employee":
