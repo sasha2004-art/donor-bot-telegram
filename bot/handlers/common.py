@@ -266,9 +266,9 @@ async def process_gender(callback: types.CallbackQuery, state: FSMContext):
 @router.callback_query(Registration.awaiting_consent, F.data == "consent_given")
 async def process_consent(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     user_data = await state.get_data()
-    phone_number = user_data.get('phone_number')
+    telegram_id = user_data.get('telegram_id')
 
-    existing_user = await user_requests.get_user_by_phone(session, phone_number)
+    existing_user = await user_requests.get_user_by_tg_id(session, telegram_id)
 
     if existing_user:
         update_data = {
