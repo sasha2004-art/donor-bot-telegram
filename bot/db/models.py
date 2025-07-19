@@ -177,7 +177,6 @@ class Survey(Base):
     # Противопоказания
     tattoo_or_piercing: Mapped[str] = mapped_column(String(50), nullable=True)
     tooth_removal_last_10_days: Mapped[str] = mapped_column(String(50), nullable=True)
-    menstruation_last_5_days: Mapped[str] = mapped_column(String(50), nullable=True)
     antibiotics_last_2_weeks: Mapped[str] = mapped_column(String(50), nullable=True)
     analgesics_last_3_days: Mapped[str] = mapped_column(String(50), nullable=True)
 

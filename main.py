@@ -69,7 +69,6 @@ class SurveyAnswers(BaseModel):
     # Противопоказания
     tattoo_or_piercing: str
     tooth_removal_last_10_days: str
-    menstruation_last_5_days: str
     antibiotics_last_2_weeks: str
     analgesics_last_3_days: str
 
@@ -123,8 +122,6 @@ async def process_survey_rules(answers: SurveyAnswers, user_gender: str) -> tupl
         return ('temp_waiver', 30, "ОРВИ, грипп или ангина в течение последнего месяца.")
     if answers.tooth_removal_last_10_days == 'yes':
         return ('temp_waiver', 10, "Удаление зуба в последние 10 дней.")
-    if user_gender == 'female' and answers.menstruation_last_5_days == 'no':
-        return ('temp_waiver', 5, "Менструация (включая 5 дней после).")
     if answers.tattoo_or_piercing == 'yes':
         return ('temp_waiver', 120, "Наличие свежей татуировки/пирсинга (отвод на 4 месяца).")
     if answers.antibiotics_last_2_weeks == 'yes':
