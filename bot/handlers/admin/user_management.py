@@ -556,21 +556,39 @@ async def process_new_value(message: types.Message, state: FSMContext, session: 
         # Показываем обновленную карточку пользователя
         # Сначала удаляем предыдущее сообщение, затем отправляем новое
         try:
-            await message.delete()
+            await message.delete() # Удаляем сообщение с вводом нового значения
         except Exception:
             pass # Не страшно, если не получилось удалить
 
-        # Создаем фейковый callback, чтобы переиспользовать функцию
-        # Важно: message теперь должен быть новым, поэтому создаем Mock
-        new_message = await bot.send_message(message.chat.id, "Обновляю данные...")
-        fake_callback = types.CallbackQuery(
-            id="fake_callback",
-            from_user=message.from_user,
-            chat_instance="fake_chat",
-            message=new_message,
-            data=f"admin_show_user_{user_id}"
+        # Получаем обновленные данные и отправляем новую карточку
+        updated_user = await user_requests.get_user_by_id(session, user_id)
+        viewer = await user_requests.get_user_by_tg_id(session, message.from_user.id)
+
+        block_status = "ЗАБЛОКИРОВАН" if updated_user.is_blocked else "Активен"
+        text = "\n".join([
+            hbold(Text.USER_CARD_HEADER.format(full_name=updated_user.full_name)),
+            "",
+            Text.USER_CARD_TEMPLATE.format(
+                full_name=Text.escape_html(updated_user.full_name),
+                telegram_id=updated_user.telegram_id,
+                username=Text.escape_html(updated_user.telegram_username or 'не указан'),
+                phone_number=updated_user.phone_number,
+                role=updated_user.role,
+                points=updated_user.points,
+                block_status=block_status
+            )
+        ])
+
+        await message.answer(
+            text,
+            reply_markup=inline.get_user_management_keyboard(
+                target_user_id=updated_user.id,
+                target_user_role=updated_user.role,
+                viewer_role=viewer.role,
+                is_blocked=updated_user.is_blocked
+            ),
+            parse_mode="HTML"
         )
-        await show_single_user_card(fake_callback, session)
 
     except (ValueError, TypeError) as e:
         await message.answer(f"❌ Ошибка ввода. Неверный формат для поля '{field_to_edit}'.\n{e}")
