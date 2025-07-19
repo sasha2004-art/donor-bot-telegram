@@ -26,19 +26,10 @@ from tests.conftest import TEST_DATABASE_URL
 
 @pytest_asyncio.fixture
 async def client():
-    with patch('main.create_async_engine') as mock_create_engine:
-        # Создаем тестовый движок
-        test_engine = create_async_engine(TEST_DATABASE_URL)
-        mock_create_engine.return_value = test_engine
-
-        # Переопределяем зависимость для сессий
-        app.dependency_overrides[main_session_maker] = override_get_session
-
-        async with AsyncClient(app=app, base_url="http://test") as ac:
-            yield ac
-
-        # Очищаем переопределения после теста
-        app.dependency_overrides = {}
+    app.dependency_overrides[main_session_maker] = override_get_session
+    async with AsyncClient(app=app, base_url="http://test") as ac:
+        yield ac
+    app.dependency_overrides = {}
 
 # --- Тесты ---
 

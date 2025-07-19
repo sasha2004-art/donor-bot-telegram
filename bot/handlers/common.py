@@ -192,10 +192,14 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(university="Внешний донор", faculty="Не применимо", study_group="-")
         await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
         await state.set_state(Registration.awaiting_gender)
-    elif category in ('student', 'employee'):
+    elif category == 'student':
         await state.update_data(university="НИЯУ МИФИ")
         await callback.message.edit_text(Text.GET_FACULTY, reply_markup=inline.get_faculties_keyboard())
         await state.set_state(Registration.awaiting_faculty)
+    elif category == 'employee':
+        await state.update_data(university="НИЯУ МИФИ", faculty="Сотрудник", study_group="-")
+        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+        await state.set_state(Registration.awaiting_gender)
 
     await callback.answer()
 
