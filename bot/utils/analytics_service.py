@@ -23,6 +23,20 @@ async def create_report(session: AsyncSession, report_type: str) -> dict:
         report_data = await analytics_requests.get_external_donors(session)
     elif report_type == "graduated_donors":
         report_data = await analytics_requests.get_graduated_donors(session)
+    elif report_type == "churn_donors":
+        report_data = await analytics_requests.get_churn_donors(session)
+    elif report_type == "lapsed_donors":
+        report_data = await analytics_requests.get_lapsed_donors(session)
+    elif report_type == "top_donors":
+        report_data = await analytics_requests.get_top_donors(session)
+    elif report_type == "rare_blood_donors":
+        report_data = await analytics_requests.get_rare_blood_donors(session)
+    elif report_type == "top_faculties":
+        report_data = await analytics_requests.get_top_faculties(session)
+    elif report_type == "dkm_candidates":
+        report_data = await analytics_requests.get_dkm_candidates(session)
+    elif report_type == "survey_dropoff":
+        report_data = await analytics_requests.get_survey_dropoff(session)
     return report_data
 
 def plot_donations_by_month(data: list[tuple]) -> io.BytesIO:

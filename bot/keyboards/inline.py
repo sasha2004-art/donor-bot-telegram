@@ -187,13 +187,17 @@ def get_analytics_main_menu_keyboard():
 
 def get_reports_menu_keyboard():
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="Одноразовые доноры", callback_data="report_one_time_donors"))
-    builder.row(InlineKeyboardButton(text="Не пришедшие на донацию", callback_data="report_no_show_donors"))
-    builder.row(InlineKeyboardButton(text="Доноры костного мозга", callback_data="report_dkm_donors"))
-    builder.row(InlineKeyboardButton(text="Студенты", callback_data="report_students"))
-    builder.row(InlineKeyboardButton(text="Сотрудники", callback_data="report_employees"))
-    builder.row(InlineKeyboardButton(text="Внешние доноры", callback_data="report_external_donors"))
-    builder.row(InlineKeyboardButton(text="Выпустившиеся доноры", callback_data="report_graduated_donors"))
+    # I. Отчеты по активности и лояльности доноров
+    builder.row(InlineKeyboardButton(text="Churn-доноры", callback_data="report_churn_donors"))
+    builder.row(InlineKeyboardButton(text="Угасающие доноры", callback_data="report_lapsed_donors"))
+    builder.row(InlineKeyboardButton(text="Топ-20 доноров", callback_data="report_top_donors"))
+    builder.row(InlineKeyboardButton(text="Доноры редкой крови", callback_data="report_rare_blood_donors"))
+    # II. Отчеты по сегментации и демографии
+    builder.row(InlineKeyboardButton(text="Самые активные факультеты", callback_data="report_top_faculties"))
+    builder.row(InlineKeyboardButton(text="Кандидаты в регистр ДКМ", callback_data="report_dkm_candidates"))
+    # III. Отчеты по конверсии и эффективности
+    builder.row(InlineKeyboardButton(text="Потеря после опросника", callback_data="report_survey_dropoff"))
+
     builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="admin_analytics"))
     return builder.as_markup()
 

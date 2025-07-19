@@ -156,3 +156,225 @@ async def get_graduated_donors(session: AsyncSession) -> list[dict]:
     """Возвращает список доноров, которые выпустились из университета."""
     # This is a placeholder. The actual implementation will depend on how graduation is determined.
     return []
+
+async def get_churn_donors(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает доноров-однодневок.
+    Логика: Пользователи, у которых ровно 1 донация, и она была более 6 месяцев назад.
+    """
+    six_months_ago = datetime.datetime.now() - datetime.timedelta(days=180)
+
+    # Подзапрос для поиска пользователей с одной донацией
+    subquery = (
+        select(Donation.user_id)
+        .group_by(Donation.user_id)
+        .having(func.count(Donation.id) == 1)
+    ).alias("one_donation_users")
+
+    # Основной запрос
+    stmt = (
+        select(User.full_name, User.telegram_username, Donation.donation_date)
+        .join(subquery, User.id == subquery.c.user_id)
+        .join(Donation, User.id == Donation.user_id)
+        .where(Donation.donation_date < six_months_ago)
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {"full_name": row.full_name, "username": row.telegram_username, "donation_date": row.donation_date}
+        for row in result
+    ]
+
+async def get_lapsed_donors(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает угасающих доноров.
+    Логика: 2+ донации, последняя > 9 мес. назад, нет активных медотводов.
+    """
+    nine_months_ago = datetime.datetime.now() - datetime.timedelta(days=270)
+    today = datetime.date.today()
+
+    # Подзапрос: пользователи с 2+ донациями и датой последней донации
+    subquery = (
+        select(
+            Donation.user_id,
+            func.count(Donation.id).label("donations_count"),
+            func.max(Donation.donation_date).label("last_donation_date")
+        )
+        .group_by(Donation.user_id)
+        .having(func.count(Donation.id) >= 2)
+        .alias("lapsed_candidates")
+    )
+
+    # Подзапрос: пользователи с активными медотводами
+    active_waiver_subquery = (
+        select(MedicalWaiver.user_id)
+        .where(MedicalWaiver.end_date >= today)
+    ).alias("active_waivers")
+
+    # Основной запрос
+    stmt = (
+        select(
+            User.full_name,
+            User.telegram_username,
+            subquery.c.donations_count,
+            subquery.c.last_donation_date
+        )
+        .join(subquery, User.id == subquery.c.user_id)
+        .outerjoin(active_waiver_subquery, User.id == active_waiver_subquery.c.user_id)
+        .where(
+            subquery.c.last_donation_date < nine_months_ago,
+            active_waiver_subquery.c.user_id == None # Условие отсутствия в подзапросе с медотводами
+        )
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {
+            "full_name": row.full_name,
+            "username": row.telegram_username,
+            "donation_count": row.donations_count,
+            "last_donation_date": row.last_donation_date
+        }
+        for row in result
+    ]
+
+async def get_top_donors(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает топ-20 доноров по количеству донаций.
+    """
+    # Используем оконную функцию для ранжирования
+    stmt = (
+        select(
+            User.full_name,
+            User.telegram_username,
+            func.count(Donation.id).label("donation_count"),
+            func.rank().over(order_by=func.count(Donation.id).desc()).label("rank")
+        )
+        .join(Donation, User.id == Donation.user_id)
+        .group_by(User.id)
+        .order_by(text("rank")) # Сортируем по рангу
+        .limit(20)
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {
+            "rank": row.rank,
+            "full_name": row.full_name,
+            "username": row.telegram_username,
+            "donation_count": row.donation_count
+        }
+        for row in result
+    ]
+
+async def get_rare_blood_donors(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает доноров с редкой группой крови.
+    Логика: rh_factor = '-' ИЛИ blood_type = 'AB(IV)'.
+    """
+    stmt = (
+        select(User.full_name, User.telegram_username, User.blood_type, User.rh_factor)
+        .where(
+            (User.rh_factor == '-') |
+            (User.blood_type == 'AB(IV)')
+        )
+        .order_by(User.full_name)
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {
+            "full_name": row.full_name,
+            "username": row.telegram_username,
+            "blood_group": f"{row.blood_type}{row.rh_factor}"
+        }
+        for row in result
+    ]
+
+async def get_top_faculties(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает самые активные факультеты по количеству донаций.
+    Логика: Группировка донаций по факультетам пользователей из НИЯУ МИФИ.
+    """
+    stmt = (
+        select(User.faculty, func.count(Donation.id).label("donation_count"))
+        .join(Donation, User.id == Donation.user_id)
+        .where(User.university == "НИЯУ МИФИ", User.faculty != None)
+        .group_by(User.faculty)
+        .order_by(func.count(Donation.id).desc())
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {"faculty_name": row.faculty, "donation_count": row.donation_count}
+        for row in result
+    ]
+
+async def get_dkm_candidates(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает кандидатов в регистр ДКМ.
+    Логика: Пользователи с 2+ донациями, но is_dkm_donor = False.
+    """
+    subquery = (
+        select(Donation.user_id, func.count(Donation.id).label("donation_count"))
+        .group_by(Donation.user_id)
+        .having(func.count(Donation.id) >= 2)
+    ).alias("two_plus_donations")
+
+    stmt = (
+        select(User.full_name, User.telegram_username, two_plus_donations.c.donation_count)
+        .join(two_plus_donations, User.id == two_plus_donations.c.user_id)
+        .where(User.is_dkm_donor == False)
+        .order_by(User.full_name)
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {
+            "full_name": row.full_name,
+            "username": row.telegram_username,
+            "donation_count": row.donation_count
+        }
+        for row in result
+    ]
+
+async def get_survey_dropoff(session: AsyncSession) -> list[dict]:
+    """
+    Возвращает пользователей, "потерянных" после опросника.
+    Логика: Есть успешный опросник, но нет регистрации на мероприятие после него.
+    """
+    # Подзапрос: последняя регистрация для каждого пользователя
+    last_reg_subquery = (
+        select(
+            EventRegistration.user_id,
+            func.max(EventRegistration.registration_date).label("last_reg_date")
+        )
+        .group_by(EventRegistration.user_id)
+    ).alias("last_regs")
+
+    # Основной запрос
+    stmt = (
+        select(User.full_name, User.telegram_username, Survey.created_at)
+        .join(Survey, User.id == Survey.user_id)
+        .outerjoin(last_reg_subquery, User.id == last_reg_subquery.c.user_id)
+        .where(
+            (Survey.passed == True) &
+            (
+                (last_reg_subquery.c.last_reg_date == None) |
+                (Survey.created_at > last_reg_subquery.c.last_reg_date)
+            )
+        )
+        # Убедимся, что берем только последнюю запись о прохождении опросника для пользователя
+        .distinct(User.id)
+        .order_by(User.id, Survey.created_at.desc())
+    )
+
+    result = await session.execute(stmt)
+    return [
+        {
+            "full_name": row.full_name,
+            "username": row.telegram_username,
+            "survey_date": row.created_at
+        }
+        for row in result
+    ]

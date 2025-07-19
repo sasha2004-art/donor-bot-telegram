@@ -116,17 +116,60 @@ async def show_reports_menu(callback: types.CallbackQuery):
 @router.callback_query(F.data.startswith("report_"), RoleFilter('admin'))
 async def generate_report(callback: types.CallbackQuery, session: AsyncSession, bot: Bot):
     report_type = callback.data.split("_", 1)[1]
+    report_titles = {
+        "churn_donors": "Доноры-однодневки",
+        "lapsed_donors": "Угасающие доноры",
+        "top_donors": "Доноры-чемпионы",
+        "rare_blood_donors": "Доноры редкой крови",
+        "top_faculties": "Самые активные факультеты",
+        "dkm_candidates": "Кандидаты в регистр ДКМ",
+        "survey_dropoff": "Потерянные после опросника"
+    }
+    report_title = report_titles.get(report_type, "Отчет")
+
     await callback.answer("⏳ Генерирую отчет...")
 
     report_data = await analytics_service.create_report(session, report_type)
 
     if not report_data:
-        await callback.message.edit_text("Нет данных для этого отчета.")
+        await callback.message.answer("Нет данных для этого отчета.")
         return
 
-    report_text = f"📄 <b>Отчет: {report_type}</b>\n\n"
-    for item in report_data:
-        report_text += f"👤 {item['full_name']} (@{item['telegram_username']})\n"
+    # Формирование отчета в виде таблицы
+    headers = list(report_data[0].keys())
+    # Заголовки для красоты
+    header_map = {
+        "full_name": "ФИО", "username": "Username", "donation_date": "Дата донации",
+        "donation_count": "Донаций", "last_donation_date": "Последняя донация", "rank": "Ранг",
+        "blood_group": "Группа крови", "faculty_name": "Факультет", "survey_date": "Дата опросника"
+    }
+    pretty_headers = [header_map.get(h, h) for h in headers]
+
+    # Определяем ширину колонок
+    col_widths = {h: len(pretty_headers[i]) for i, h in enumerate(headers)}
+    for row in report_data:
+        for key, value in row.items():
+            col_widths[key] = max(col_widths[key], len(str(value)))
+
+    # Собираем текстовый файл
+    report_lines = []
+    report_lines.append(f"Отчет: {report_title}")
+    report_lines.append("=" * (sum(col_widths.values()) + len(col_widths) * 3 -1))
+
+    header_line = "  ".join(h.ljust(col_widths[headers[i]]) for i, h in enumerate(pretty_headers))
+    report_lines.append(header_line)
+    report_lines.append("-" * len(header_line))
+
+    for row in report_data:
+        row_list = []
+        for header in headers:
+            value = row.get(header, "")
+            if isinstance(value, datetime.datetime) or isinstance(value, datetime.date):
+                value = value.strftime('%Y-%m-%d')
+            row_list.append(str(value).ljust(col_widths[header]))
+        report_lines.append("  ".join(row_list))
+
+    report_text = "\n".join(report_lines)
 
     await bot.send_document(
         chat_id=callback.from_user.id,
@@ -134,5 +177,5 @@ async def generate_report(callback: types.CallbackQuery, session: AsyncSession, 
             report_text.encode("utf-8"),
             filename=f"report_{report_type}.txt"
         ),
-        caption=f"Отчет по категории: {report_type}"
+        caption=f"Отчет: {report_title}"
     )
