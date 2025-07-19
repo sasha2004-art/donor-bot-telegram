@@ -146,17 +146,17 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 @router.message(Registration.awaiting_full_name)
 async def process_full_name(message: types.Message, state: FSMContext, session: AsyncSession):
     full_name = message.text.strip()
-    
+
     allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
     if not all(c.lower() in allowed_chars or c.isspace() for c in full_name):
         await message.answer(Text.FIO_VALIDATION_ERROR)
         return
-        
+
     name_parts = full_name.split()
     if len(name_parts) < 2:
         await message.answer("Пожалуйста, введите как минимум Фамилию и Имя.")
         return
-    
+
     corrected_name = " ".join([part.strip().capitalize() for part in name_parts])
 
     user_by_fio = await user_requests.get_unlinked_user_by_fio(session, corrected_name)
@@ -164,12 +164,20 @@ async def process_full_name(message: types.Message, state: FSMContext, session: 
         user_data = await state.get_data()
         await user_requests.update_user_credentials(session, user_by_fio.id, user_data['telegram_id'], user_data['telegram_username'])
         await session.commit()
-        await state.clear()
-        await send_or_edit_main_menu(message, session, welcome_text=Text.AUTH_SUCCESS.format(name=user_by_fio.full_name))
+
+        if not await user_requests.is_profile_complete(session, user_by_fio.id):
+            await message.answer("Ваш профиль был найден, но он не полон. Давайте его дозаполним.")
+            await state.update_data(full_name=corrected_name)
+            await message.answer(Text.GET_CATEGORY, reply_markup=inline.get_category_keyboard())
+            await state.set_state(Registration.awaiting_category)
+        else:
+            await state.clear()
+            await send_or_edit_main_menu(message, session,
+                                           welcome_text=Text.AUTH_SUCCESS.format(name=user_by_fio.full_name))
         return
 
     await state.update_data(full_name=corrected_name)
-    
+
     await message.answer(Text.GET_CATEGORY, reply_markup=inline.get_category_keyboard())
     await state.set_state(Registration.awaiting_category)
 
