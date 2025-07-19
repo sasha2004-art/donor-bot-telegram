@@ -254,7 +254,7 @@ async def process_consent(callback: types.CallbackQuery, state: FSMContext, sess
     )
 
     await callback.message.answer(
-        # text="Теперь вам доступно главное меню.",
+        text="Теперь вам доступно главное меню.",
         reply_markup=reply.get_home_keyboard()
     )
     

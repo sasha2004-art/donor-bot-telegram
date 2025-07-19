@@ -272,11 +272,11 @@ async def check_recent_survey(session: AsyncSession, user_id: int) -> bool:
 
 async def get_unlinked_user_by_fio(session: AsyncSession, full_name: str) -> User | None:
     """
-    Ищет пользователя по ФИО среди тех, у кого telegram_id = 0.
+    Ищет пользователя по ФИО среди тех, у кого telegram_id <= 0.
     """
     stmt = select(User).where(
         User.full_name == full_name,
-        User.telegram_id == 0
+        User.telegram_id <= 0
     )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
