@@ -362,3 +362,12 @@ async def manually_confirm_donation(session: AsyncSession, user_id: int, event_i
         await session.rollback()
         logger.error(f"Error in manually_confirm_donation for user {user_id}: {e}")
         return False, f"Ошибка при подтверждении для {user.full_name}: {e}"
+
+
+async def get_min_user_id(session: AsyncSession) -> int:
+    """
+    Gets the minimum user ID from the database.
+    """
+    result = await session.execute(select(func.min(User.telegram_id)))
+    min_id = result.scalar_one_or_none()
+    return min_id if min_id is not None else 0

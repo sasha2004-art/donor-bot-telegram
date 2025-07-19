@@ -524,9 +524,13 @@ async def add_user_phone(message: types.Message, state: FSMContext, session: Asy
         await state.clear()
         return
 
+    # Генерируем уникальный отрицательный ID
+    min_user_id = await admin_requests.get_min_user_id(session)
+    new_telegram_id = min(0, min_user_id) - 1
+
     await state.update_data(
         phone_number=phone_number,
-        telegram_id=0, # Временный ID, т.к. пользователь еще не запускал бота
+        telegram_id=new_telegram_id,
         telegram_username=f"manual_{phone_number}"
     )
     await state.set_state(AdminAddUser.awaiting_full_name)
