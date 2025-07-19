@@ -32,6 +32,8 @@ async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tup
 
     for index, row in df.iterrows():
         phone = str(row['phone_number'])
+        if not phone.startswith('+'):
+            phone = '+' + phone
         user = await user_requests.get_user_by_phone(session, phone)
 
         study_group = row.get('study_group')
