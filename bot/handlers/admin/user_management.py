@@ -14,6 +14,7 @@ from bot.states.states import (
     UserSearch,
     BlockUser,
     AdminAddUser,
+    UserEditing
 )
 from bot.keyboards import inline
 from bot.utils.text_messages import Text
@@ -499,6 +500,76 @@ async def admin_delete_waiver(callback: types.CallbackQuery, session: AsyncSessi
         await admin_manage_user_waivers_menu(callback, session)
     except Exception:
         await callback.message.answer("Возврат в меню...", reply_markup=inline.get_back_to_admin_panel_keyboard())
+
+# --- Редактирование данных пользователя ---
+@router.callback_query(F.data.startswith("admin_edit_user_"), RoleFilter('admin'))
+async def start_user_editing(callback: types.CallbackQuery, state: FSMContext):
+    user_id = int(callback.data.split('_')[-1])
+    await state.clear()
+    await state.update_data(user_id=user_id)
+    await state.set_state(UserEditing.choosing_field)
+    await callback.message.edit_text(
+        "Выберите поле для редактирования:",
+        reply_markup=inline.get_user_editing_keyboard(user_id)
+    )
+    await callback.answer()
+
+@router.callback_query(F.data.startswith("edit_user_"), RoleFilter('admin'))
+async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext):
+    parts = callback.data.split('_')
+    user_id = int(parts[2])
+    field_to_edit = parts[3]
+
+    await state.update_data(field_to_edit=field_to_edit)
+    await state.set_state(UserEditing.awaiting_new_value)
+
+    await callback.message.edit_text(f"Введите новое значение для поля '{field_to_edit}':")
+    await callback.answer()
+
+@router.message(UserEditing.awaiting_new_value)
+async def process_new_value(message: types.Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    user_id = data['user_id']
+    field_to_edit = data['field_to_edit']
+    new_value = message.text
+
+    user = await user_requests.get_user_by_id(session, user_id)
+    if not user:
+        await message.answer(Text.USER_NOT_FOUND)
+        await state.clear()
+        return
+
+    try:
+        # Преобразование типов для некоторых полей
+        if field_to_edit in ['telegram_id', 'points', 'graduation_year']:
+            new_value = int(new_value)
+        elif field_to_edit in ['is_blocked', 'is_dkm_donor']:
+            new_value = new_value.lower() in ['true', '1', 'yes', 'да']
+
+        setattr(user, field_to_edit, new_value)
+        session.add(user)
+        await session.commit()
+
+        await message.answer(f"✅ Поле '{field_to_edit}' успешно обновлено!")
+        await state.clear()
+
+        # Показываем обновленную карточку пользователя
+        # Создаем фейковый callback, чтобы переиспользовать функцию
+        fake_callback = types.CallbackQuery(
+            id="fake_callback",
+            from_user=message.from_user,
+            chat_instance="fake_chat",
+            message=message,
+            data=f"admin_show_user_{user_id}"
+        )
+        await show_single_user_card(fake_callback, session)
+
+    except (ValueError, TypeError) as e:
+        await message.answer(f"❌ Ошибка ввода. Неверный формат для поля '{field_to_edit}'.\n{e}")
+    except Exception as e:
+        await session.rollback()
+        await message.answer(f"❌ Произошла ошибка при обновлении: {e}")
+        await state.clear()
         
         
         

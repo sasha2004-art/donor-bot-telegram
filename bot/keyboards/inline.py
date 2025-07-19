@@ -236,6 +236,7 @@ def get_back_to_admin_panel_keyboard():
 
 def get_user_management_keyboard(target_user_id: int, target_user_role: str, viewer_role: str, is_blocked: bool):
     builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text="✏️ Редактировать данные", callback_data=f"admin_edit_user_{target_user_id}"))
     builder.row(InlineKeyboardButton(text="🎟️ Упр. регистрациями", callback_data=f"admin_manage_user_regs_{target_user_id}"))
     builder.row(InlineKeyboardButton(text="⚕️ Упр. медотводами", callback_data=f"admin_manage_waivers_{target_user_id}"))
 
@@ -257,6 +258,27 @@ def get_user_management_keyboard(target_user_id: int, target_user_role: str, vie
             builder.row(InlineKeyboardButton(text="🚫 Заблокировать", callback_data=f"ma_block_user_{target_user_id}"))
             
     builder.row(InlineKeyboardButton(text="↩️ Назад к управлению", callback_data="admin_manage_users"))
+    return builder.as_markup()
+
+def get_user_editing_keyboard(user_id: int):
+    builder = InlineKeyboardBuilder()
+    fields = {
+        "full_name": "ФИО",
+        "phone_number": "Телефон",
+        "telegram_id": "Telegram ID",
+        "university": "ВУЗ",
+        "faculty": "Факультет",
+        "study_group": "Группа",
+        "gender": "Пол",
+        "category": "Категория",
+        "role": "Роль",
+        "is_dkm_donor": "Донор ДКМ",
+        "graduation_year": "Год выпуска"
+    }
+    for field, name in fields.items():
+        builder.row(InlineKeyboardButton(text=name, callback_data=f"edit_user_{user_id}_{field}"))
+
+    builder.row(InlineKeyboardButton(text="↩️ Назад к пользователю", callback_data=f"admin_show_user_{user_id}"))
     return builder.as_markup()
 
 def get_donation_type_keyboard():

@@ -115,3 +115,7 @@ class AnswerQuestion(StatesGroup):
 class DataImport(StatesGroup):
     awaiting_file = State()
     awaiting_old_db_file = State()
+
+class UserEditing(StatesGroup):
+    choosing_field = State()
+    awaiting_new_value = State()
