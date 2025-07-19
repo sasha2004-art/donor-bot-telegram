@@ -268,11 +268,13 @@ def get_donation_type_keyboard():
     return builder.as_markup()
 
 
-def get_blood_centers_keyboard(blood_centers):
+def get_blood_centers_keyboard(blood_centers, edit_mode=False):
     builder = InlineKeyboardBuilder()
     for center in blood_centers:
         builder.row(InlineKeyboardButton(text=center.name, callback_data=f"select_blood_center_{center.id}"))
-    builder.row(InlineKeyboardButton(text="➕ Добавить новый", callback_data="add_new_blood_center"))
+
+    callback_data = "add_new_blood_center_edit" if edit_mode else "add_new_blood_center"
+    builder.row(InlineKeyboardButton(text="➕ Добавить новый", callback_data=callback_data))
     return builder.as_markup()
 
 def get_main_admin_panel_keyboard():

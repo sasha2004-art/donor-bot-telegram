@@ -325,7 +325,7 @@ async def choose_field_to_edit(callback: types.CallbackQuery, state: FSMContext,
         blood_centers = await admin_requests.get_all_blood_centers(session)
         await callback.message.edit_text(
             "Выберите новый центр крови:",
-            reply_markup=inline.get_blood_centers_keyboard(blood_centers)
+            reply_markup=inline.get_blood_centers_keyboard(blood_centers, edit_mode=True)
         )
     else:
         await state.set_state(EventEditing.awaiting_new_value)
@@ -362,6 +362,24 @@ async def process_new_blood_center_for_event(callback: types.CallbackQuery, stat
     await session.commit()
     await state.clear()
     await callback.message.edit_text(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
+
+
+@router.callback_query(EventEditing.awaiting_new_value, F.data == "add_new_blood_center_edit")
+async def add_new_blood_center_for_edit(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(EventEditing.awaiting_new_blood_center_name_for_edit)
+    await callback.message.edit_text("Введите название нового центра крови:")
+
+
+@router.message(EventEditing.awaiting_new_blood_center_name_for_edit)
+async def process_new_blood_center_name_for_edit(message: types.Message, state: FSMContext, session: AsyncSession):
+    data = await state.get_data()
+    event_id = data.get("event_id")
+    new_blood_center = await admin_requests.create_blood_center(session, message.text)
+
+    await admin_requests.update_event_field(session, event_id, "blood_center_id", new_blood_center.id)
+    await session.commit()
+    await state.clear()
+    await message.answer(Text.EVENT_EDIT_SUCCESS, reply_markup=inline.get_back_to_admin_panel_keyboard())
 
 @router.callback_query(F.data.startswith("admin_event_participants_"), RoleFilter('admin'))
 async def get_event_participants(callback: types.CallbackQuery, session: AsyncSession):

@@ -61,6 +61,7 @@ class VolunteerActions(StatesGroup):
 class EventEditing(StatesGroup):
     choosing_field = State() 
     awaiting_new_value = State()
+    awaiting_new_blood_center_name_for_edit = State()
     
 class MerchEditing(StatesGroup):
     choosing_field = State()
