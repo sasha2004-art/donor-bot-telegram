@@ -253,15 +253,22 @@ async def process_consent(callback: types.CallbackQuery, state: FSMContext, sess
     
     user_data['graduation_year'] = calculate_graduation_year(user_data.get('study_group'))
 
-    new_user = await user_requests.add_user(session, user_data)
-    await session.commit()
+    user = await user_requests.get_user_by_tg_id(session, user_data['telegram_id'])
+    if user:
+        await user_requests.update_user_profile(session, user.id, user_data)
+        await session.commit()
+        user_to_greet = await user_requests.get_user_by_id(session, user.id)
+    else:
+        user_to_greet = await user_requests.add_user(session, user_data)
+        await session.commit()
+
     await state.clear()
     
     await callback.message.delete()
 
     await callback.message.answer(
-        text=f"{Text.REGISTRATION_COMPLETE.format(name=new_user.full_name)}\n\n{Text.MAIN_MENU_PROMPT}",
-        reply_markup=ROLE_MENU_MAP.get(new_user.role, inline.get_student_main_menu)(viewer_role=new_user.role)
+        text=f"{Text.REGISTRATION_COMPLETE.format(name=user_to_greet.full_name)}\n\n{Text.MAIN_MENU_PROMPT}",
+        reply_markup=ROLE_MENU_MAP.get(user_to_greet.role, inline.get_student_main_menu)(viewer_role=user_to_greet.role)
     )
 
     await callback.message.answer(
