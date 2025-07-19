@@ -56,6 +56,7 @@ async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tup
             full_data['telegram_id'] = 0
             full_data['telegram_username'] = f"import_{phone}"
             user = await user_requests.add_user(session, full_data)
+            await session.flush()  # Flush to get the user ID
             created_count += 1
 
         donations_gavrilov = row.get('donations_gavrilov', 0)
