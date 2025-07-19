@@ -46,7 +46,7 @@ async def process_event_name(message: types.Message, state: FSMContext):
 async def process_event_datetime(message: types.Message, state: FSMContext):
     try:
         event_dt = datetime.datetime.strptime(message.text, "%d.%m.%Y %H:%M")
-        await state.update_data(event_datetime=event_dt)
+        await state.update_data(event_datetime=event_dt.isoformat())
         await state.set_state(EventCreation.awaiting_location_text)
         await message.answer(Text.EVENT_CREATE_STEP_3_LOCATION_TEXT)
     except ValueError:
@@ -97,7 +97,7 @@ async def process_event_limit(message: types.Message, state: FSMContext):
 
         text = Text.EVENT_CREATE_CONFIRMATION.format(
             name=event_data['name'],
-            datetime=event_data['event_datetime'].strftime('%d.%m.%Y в %H:%M'),
+            datetime=datetime.datetime.fromisoformat(event_data['event_datetime']).strftime('%d.%m.%Y в %H:%M'),
             location=event_data['location'],
             location_set="Указана" if event_data.get('latitude') else "Не указана",
             type=event_data['donation_type'],
@@ -116,6 +116,7 @@ async def confirm_event_creation_and_notify(callback: types.CallbackQuery, state
     event_data = await state.get_data()
     await state.clear()
     
+    event_data['event_datetime'] = datetime.datetime.fromisoformat(event_data['event_datetime'])
     new_event = await admin_requests.create_event(session, event_data)
     await session.commit()
     
@@ -292,7 +293,7 @@ async def process_new_value_for_event(message: types.Message, state: FSMContext,
     field, event_id, new_value_str = data.get("field_to_edit"), data.get("event_id"), message.text
     
     try:
-        if field == "event_date": update_value = datetime.datetime.strptime(new_value_str, "%d.%m.%Y").date()
+        if field == "event_date": update_value = datetime.datetime.strptime(new_value_str, "%d.%m.%Y %H:%M")
         elif field in ["points_per_donation", "participant_limit"]: update_value = int(new_value_str)
         else: update_value = new_value_str
     except ValueError:
