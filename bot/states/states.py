@@ -9,8 +9,6 @@ class Registration(StatesGroup):
     awaiting_faculty = State()
     awaiting_custom_faculty_name = State()
     awaiting_study_group = State()
-    awaiting_blood_type = State()
-    awaiting_rh_factor = State()
     awaiting_gender = State()
 
 class EventCreation(StatesGroup):
@@ -20,8 +18,6 @@ class EventCreation(StatesGroup):
     awaiting_location_point = State()
     awaiting_donation_type = State()
     awaiting_points = State()
-    awaiting_bonus_points = State()
-    awaiting_rare_blood_types = State() 
     awaiting_limit = State()
     awaiting_confirmation = State()
 
@@ -97,8 +93,6 @@ class AdminAddUser(StatesGroup):
     awaiting_faculty = State()
     awaiting_custom_faculty_name = State()
     awaiting_study_group = State()
-    awaiting_blood_type = State()
-    awaiting_rh_factor = State()
     awaiting_gender = State()
     
 class PostEventProcessing(StatesGroup):

@@ -80,56 +80,10 @@ async def process_event_points(message: types.Message, state: FSMContext):
     try:
         points = int(message.text)
         await state.update_data(points_per_donation=points)
-        await state.set_state(EventCreation.awaiting_bonus_points)
-        await message.answer(Text.EVENT_CREATE_STEP_7_BONUS)
-    except ValueError:
-        await message.answer(Text.EVENT_POINTS_NAN_ERROR)
-
-@router.message(EventCreation.awaiting_bonus_points)
-async def process_event_bonus_points(message: types.Message, state: FSMContext):
-    try:
-        bonus = int(message.text)
-        await state.update_data(rare_blood_bonus_points=bonus)
-        
-        if bonus == 0:
-            await state.update_data(rare_blood_types=[])
-            await state.set_state(EventCreation.awaiting_limit)
-            await message.answer(Text.EVENT_CREATE_STEP_8_LIMIT)
-        else:
-            await state.update_data(selected_rare_types=list()) 
-            await state.set_state(EventCreation.awaiting_rare_blood_types)
-            await message.answer(
-                Text.EVENT_CREATE_STEP_7_RARE_TYPES,
-                reply_markup=inline.get_rare_blood_type_selection_keyboard()
-            )
-    except ValueError:
-        await message.answer(Text.EVENT_POINTS_NAN_ERROR)
-
-
-@router.callback_query(EventCreation.awaiting_rare_blood_types, F.data.startswith("select_rare_"))
-async def process_rare_blood_type_selection(callback: types.CallbackQuery, state: FSMContext):
-    action = callback.data.split('_', 2)[-1]
-    
-    data = await state.get_data()
-    selected = data.get("selected_rare_types", [])
-
-    if action == "done":
-        await state.update_data(rare_blood_types=selected)
         await state.set_state(EventCreation.awaiting_limit)
-        await callback.message.edit_text(Text.EVENT_CREATE_STEP_8_LIMIT)
-    else:
-        blood_type = action
-        if blood_type in selected:
-            selected.remove(blood_type)
-        else:
-            selected.append(blood_type)
-        
-        await state.update_data(selected_rare_types=selected)
-        await callback.message.edit_reply_markup(
-            reply_markup=inline.get_rare_blood_type_selection_keyboard(selected)
-        )
-    
-    await callback.answer()
+        await message.answer(Text.EVENT_CREATE_STEP_7_LIMIT)
+    except ValueError:
+        await message.answer(Text.EVENT_POINTS_NAN_ERROR)
 
 
 @router.message(EventCreation.awaiting_limit)
@@ -140,7 +94,6 @@ async def process_event_limit(message: types.Message, state: FSMContext):
         await state.set_state(EventCreation.awaiting_confirmation)
         
         event_data = await state.get_data()
-        rare_types_str = ", ".join(event_data.get('rare_blood_types', [])) or "не указаны"
 
         text = Text.EVENT_CREATE_CONFIRMATION.format(
             name=event_data['name'],
@@ -149,8 +102,6 @@ async def process_event_limit(message: types.Message, state: FSMContext):
             location_set="Указана" if event_data.get('latitude') else "Не указана",
             type=event_data['donation_type'],
             points=event_data['points_per_donation'],
-            bonus_points=event_data['rare_blood_bonus_points'],
-            rare_types=rare_types_str,
             limit=event_data['participant_limit']
         )
         
@@ -163,7 +114,6 @@ async def confirm_event_creation_and_notify(callback: types.CallbackQuery, state
     await callback.message.edit_text(Text.EVENT_CREATING_IN_PROGRESS)
     
     event_data = await state.get_data()
-    event_data.pop("selected_rare_types", None)
     await state.clear()
     
     new_event = await admin_requests.create_event(session, event_data)
@@ -283,7 +233,6 @@ async def show_single_event_card(callback: types.CallbackQuery, session: AsyncSe
         donation_type=donation_type_ru,
         points_header=hbold('Баллы:'),
         points_per_donation=event.points_per_donation,
-        rare_blood_bonus_points=event.rare_blood_bonus_points,
         limit_header=hbold('Записано/Лимит:'),
         reg_count=reg_count,
         participant_limit=event.participant_limit,

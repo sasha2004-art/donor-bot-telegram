@@ -508,7 +508,7 @@ async def add_user_start(callback: types.CallbackQuery, state: FSMContext):
     """Начало FSM добавления пользователя."""
     await state.clear()
     await state.set_state(AdminAddUser.awaiting_phone)
-    await callback.message.edit_text("<b>Шаг 1/9:</b> Введите номер телефона нового пользователя в формате <code>+7...</code>")
+    await callback.message.edit_text("<b>Шаг 1/8:</b> Введите номер телефона нового пользователя в формате <code>+7...</code>")
     await callback.answer()
 
 @router.message(AdminAddUser.awaiting_phone)
@@ -530,7 +530,7 @@ async def add_user_phone(message: types.Message, state: FSMContext, session: Asy
         telegram_username=f"manual_{phone_number}"
     )
     await state.set_state(AdminAddUser.awaiting_full_name)
-    await message.answer("<b>Шаг 2/9:</b> Введите ФИО пользователя.")
+    await message.answer("<b>Шаг 2/8:</b> Введите ФИО пользователя.")
 
 # Далее мы можем использовать почти те же шаги, что и при обычной регистрации.
 # Просто привязываем их к нашему новому состоянию AdminAddUser.
@@ -540,13 +540,13 @@ async def add_user_phone(message: types.Message, state: FSMContext, session: Asy
 async def add_user_full_name(message: types.Message, state: FSMContext):
     await state.update_data(full_name=message.text.strip())
     await state.set_state(AdminAddUser.awaiting_category)
-    await message.answer("<b>Шаг 3/9:</b> Выберите категорию пользователя.", reply_markup=inline.get_category_keyboard())
+    await message.answer("<b>Шаг 3/8:</b> Выберите категорию пользователя.", reply_markup=inline.get_category_keyboard())
 
 @router.callback_query(AdminAddUser.awaiting_category, F.data.startswith('category_'))
 async def add_user_category(callback: types.CallbackQuery, state: FSMContext):
     category = callback.data.split('_', 1)[1]
     await state.update_data(category=category)
-    await callback.message.edit_text("<b>Шаг 4/9:</b> Выберите ВУЗ.", reply_markup=inline.get_university_keyboard())
+    await callback.message.edit_text("<b>Шаг 4/8:</b> Выберите ВУЗ.", reply_markup=inline.get_university_keyboard())
     await state.set_state(AdminAddUser.awaiting_university)
     await callback.answer()
 
@@ -555,42 +555,42 @@ async def add_user_university(callback: types.CallbackQuery, state: FSMContext):
     choice = callback.data.split('_', 1)[1]
     if choice == 'mifi':
         await state.update_data(university="НИЯУ МИФИ")
-        await callback.message.edit_text("<b>Шаг 5/9:</b> Выберите факультет.", reply_markup=inline.get_faculties_keyboard())
+        await callback.message.edit_text("<b>Шаг 5/8:</b> Выберите факультет.", reply_markup=inline.get_faculties_keyboard())
         await state.set_state(AdminAddUser.awaiting_faculty)
     else:
-        await callback.message.edit_text("<b>Шаг 5/9:</b> Введите название ВУЗа.")
+        await callback.message.edit_text("<b>Шаг 5/8:</b> Введите название ВУЗа.")
         await state.set_state(AdminAddUser.awaiting_custom_university_name)
     await callback.answer()
 
 @router.message(AdminAddUser.awaiting_custom_university_name)
 async def add_user_custom_university(message: types.Message, state: FSMContext):
     await state.update_data(university=message.text)
-    await message.answer("<b>Шаг 6/9:</b> Введите факультет.")
+    await message.answer("<b>Шаг 6/8:</b> Введите факультет.")
     await state.set_state(AdminAddUser.awaiting_custom_faculty_name)
 
 @router.callback_query(AdminAddUser.awaiting_faculty, F.data.startswith('faculty_'))
 async def add_user_faculty(callback: types.CallbackQuery, state: FSMContext):
     faculty = callback.data.split('_', 1)[1]
     if faculty == 'Other':
-        await callback.message.edit_text("<b>Шаг 6/9:</b> Введите название факультета.")
+        await callback.message.edit_text("<b>Шаг 6/8:</b> Введите название факультета.")
         await state.set_state(AdminAddUser.awaiting_custom_faculty_name)
     else:
         await state.update_data(faculty=faculty)
-        await callback.message.edit_text("<b>Шаг 7/9:</b> Введите номер группы (или 'нет').")
+        await callback.message.edit_text("<b>Шаг 7/8:</b> Введите номер группы (или 'нет').")
         await state.set_state(AdminAddUser.awaiting_study_group)
     await callback.answer()
     
 @router.message(AdminAddUser.awaiting_custom_faculty_name)
 async def add_user_custom_faculty(message: types.Message, state: FSMContext):
     await state.update_data(faculty=message.text)
-    await message.answer("<b>Шаг 7/9:</b> Введите номер группы (или 'нет').")
+    await message.answer("<b>Шаг 7/8:</b> Введите номер группы (или 'нет').")
     await state.set_state(AdminAddUser.awaiting_study_group)
 
 @router.message(AdminAddUser.awaiting_study_group)
 async def add_user_study_group(message: types.Message, state: FSMContext):
     await state.update_data(study_group=message.text)
     await state.set_state(AdminAddUser.awaiting_gender)
-    await message.answer("<b>Шаг 8/9:</b> Укажите пол.", reply_markup=inline.get_gender_inline_keyboard())
+    await message.answer("<b>Шаг 8/8:</b> Укажите пол.", reply_markup=inline.get_gender_inline_keyboard())
 
 @router.callback_query(AdminAddUser.awaiting_gender, F.data.startswith("gender_"))
 async def add_user_gender(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
@@ -599,9 +599,6 @@ async def add_user_gender(callback: types.CallbackQuery, state: FSMContext, sess
     await state.update_data(gender=gender, consent_given=True) # Согласие подразумевается, т.к. добавляет админ
     
     user_data = await state.get_data()
-    # Заполняем недостающие поля по умолчанию
-    user_data.setdefault('blood_type', 'Не указан')
-    user_data.setdefault('rh_factor', '?')
 
     await user_requests.add_user(session, user_data)
     await session.commit()

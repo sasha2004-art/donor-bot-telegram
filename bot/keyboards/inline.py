@@ -83,17 +83,6 @@ def get_faculties_keyboard():
     builder.row(InlineKeyboardButton(text="Другой/Не из списка", callback_data="faculty_Other"))
     return builder.as_markup()
 
-def get_blood_type_keyboard():
-    builder = InlineKeyboardBuilder()
-    types = ["O(I)", "A(II)", "B(III)", "AB(IV)"]
-    builder.row(*[InlineKeyboardButton(text=t, callback_data=f"bloodtype_{t}") for t in types])
-    return builder.as_markup()
-
-def get_rh_factor_keyboard():
-    builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="Rh+", callback_data="rhfactor_+"), InlineKeyboardButton(text="Rh-", callback_data="rhfactor_-"))
-    return builder.as_markup()
-
 def get_gender_inline_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -386,7 +375,6 @@ def get_mailing_audience_keyboard(current_filters: dict = None):
 
     builder.row(InlineKeyboardButton(text="🎓 По ВУЗу", callback_data="mail_audience_type_university"))
     builder.row(InlineKeyboardButton(text="🏛️ По факультету", callback_data="mail_audience_type_faculty"))
-    builder.row(InlineKeyboardButton(text="🩸 По группе крови", callback_data="mail_audience_type_blood_type"))
     
     if current_filters:
         builder.row(InlineKeyboardButton(text="✅ Готово (перейти к подтверждению)", callback_data="mail_audience_finish"))
@@ -564,46 +552,6 @@ def get_admin_waiver_management_keyboard(user_id: int, waivers: list):
     builder.row(InlineKeyboardButton(text="➕ Установить новый медотвод", callback_data=f"admin_waiver_{user_id}"))
     builder.row(InlineKeyboardButton(text="↩️ Назад к пользователю", callback_data=f"admin_show_user_{user_id}"))
     return builder.as_markup()
-
-def get_rare_blood_type_selection_keyboard(selected_types: list = None):
-    """
-    Создает клавиатуру для мульти-выбора редких групп крови.
-    :param selected_types: Список уже выбранных типов (например, ['AB(IV) Rh-', 'O(I) Rh-'])
-    """
-    if selected_types is None:
-        selected_types = []
-
-    builder = InlineKeyboardBuilder()
-    
-    # Полный список возможных групп крови с резусом
-    all_blood_types = [
-        "O(I) Rh+", "O(I) Rh-",
-        "A(II) Rh+", "A(II) Rh-",
-        "B(III) Rh+", "B(III) Rh-",
-        "AB(IV) Rh+", "AB(IV) Rh-"
-    ]
-
-    # Создаем кнопки, помечая выбранные
-    row_buttons = []
-    for blood_type in all_blood_types:
-        text = f"✅ {blood_type}" if blood_type in selected_types else blood_type
-        # Данные для колбэка содержат саму группу крови
-        callback_data = f"select_rare_{blood_type}"
-        row_buttons.append(InlineKeyboardButton(text=text, callback_data=callback_data))
-        
-        # Делаем по две кнопки в ряд
-        if len(row_buttons) == 2:
-            builder.row(*row_buttons)
-            row_buttons = []
-
-    # Добавляем оставшуюся кнопку, если их нечетное число
-    if row_buttons:
-        builder.row(*row_buttons)
-
-    # Кнопка завершения выбора
-    builder.row(InlineKeyboardButton(text="➡️ Готово", callback_data="select_rare_done"))
-    return builder.as_markup()
-
 
 def get_feedback_well_being_keyboard():
     builder = InlineKeyboardBuilder()

@@ -196,15 +196,8 @@ async def confirm_donation_transaction(session: AsyncSession, user: User, regist
     """Проводит транзакцию подтверждения донации: начисляет баллы, создает медотвод."""
     event = await session.get(Event, registration.event_id)
     event_date = event.event_datetime.date() # Получаем только дату для донации и медотвода
-
-    # Проверка на редкую кровь
-    is_rare_blood = False
-    if event.rare_blood_types and user.blood_type and user.rh_factor:
-        user_blood_full = f"{user.blood_type} Rh{user.rh_factor}"
-        if user_blood_full in event.rare_blood_types:
-            is_rare_blood = True
             
-    points_to_award = event.points_per_donation + (event.rare_blood_bonus_points if is_rare_blood else 0)
+    points_to_award = event.points_per_donation
 
     # Создаем запись о донации
     donation = Donation(

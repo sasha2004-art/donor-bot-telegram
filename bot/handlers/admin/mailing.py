@@ -97,9 +97,6 @@ async def choose_audience_filter_type(callback: types.CallbackQuery, state: FSMC
     elif filter_type == "faculty":
         items = await admin_requests.get_distinct_faculties(session)
         prompt_text = "Выберите факультет для фильтрации:"
-    elif filter_type == "blood_type":
-        items = ["O(I)", "A(II)", "B(III)", "AB(IV)"]
-        prompt_text = "Выберите группу крови для фильтрации:"
 
     if not items:
         await callback.answer("Нет доступных значений для этого фильтра.", show_alert=True)

@@ -216,25 +216,7 @@ async def process_custom_faculty_name(message: types.Message, state: FSMContext)
 @router.message(Registration.awaiting_study_group)
 async def process_study_group(message: types.Message, state: FSMContext):
     await state.update_data(study_group=message.text)
-    await message.answer(Text.GET_BLOOD_TYPE, reply_markup=inline.get_blood_type_keyboard())
-    await state.set_state(Registration.awaiting_blood_type)
-
-
-@router.callback_query(Registration.awaiting_blood_type, F.data.startswith('bloodtype_'))
-async def process_blood_type(callback: types.CallbackQuery, state: FSMContext):
-    blood_type = callback.data.split('_', 1)[1]
-    await state.update_data(blood_type=blood_type)
-    await callback.message.edit_text(Text.BLOOD_TYPE_SELECTED.format(blood_type=blood_type))
-    await callback.message.answer(Text.GET_RH_FACTOR, reply_markup=inline.get_rh_factor_keyboard())
-    await state.set_state(Registration.awaiting_rh_factor)
-
-
-@router.callback_query(Registration.awaiting_rh_factor, F.data.startswith('rhfactor_'))
-async def process_rh_factor(callback: types.CallbackQuery, state: FSMContext):
-    rh_factor = callback.data.split('_', 1)[1]
-    await state.update_data(rh_factor=rh_factor)
-    await callback.message.edit_text(Text.RH_FACTOR_SELECTED.format(rh_factor=rh_factor))
-    await callback.message.answer(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+    await message.answer(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
     await state.set_state(Registration.awaiting_gender)
 
 
