@@ -223,6 +223,15 @@ async def process_custom_faculty_name(message: types.Message, state: FSMContext)
 
 @router.message(Registration.awaiting_study_group)
 async def process_study_group(message: types.Message, state: FSMContext):
+    group_name = message.text.strip().lower()
+    if group_name and group_name[0] not in ['б', 'с', 'м', 'а']:
+        await message.answer(
+            "Название учебной группы некорректно.\n"
+            "Первая буква должна быть одной из следующих: "
+            "б - бакалавриат, с - специалитет, м - магистратура, а - аспирантура."
+        )
+        return
+
     await state.update_data(study_group=message.text)
     await message.answer(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
     await state.set_state(Registration.awaiting_gender)
