@@ -20,6 +20,8 @@ class User(Base):
     faculty: Mapped[str] = mapped_column(String(100), nullable=True)
     study_group: Mapped[str] = mapped_column(String(50), nullable=True)
     gender: Mapped[str] = mapped_column(String(10), nullable=True)
+    blood_type: Mapped[str] = mapped_column(String(10), nullable=True)
+    rh_factor: Mapped[str] = mapped_column(String(1), nullable=True)
     points: Mapped[int] = mapped_column(Integer, default=0)
     role: Mapped[str] = mapped_column(String(50), default='student', index=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -27,6 +29,7 @@ class User(Base):
     category: Mapped[str] = mapped_column(String(50), default='student', server_default='student')
     is_dkm_donor: Mapped[bool] = mapped_column(Boolean, default=False, server_default='f')
     consent_given: Mapped[bool] = mapped_column(Boolean, default=False, server_default='f')
+    graduation_year: Mapped[int] = mapped_column(Integer, nullable=True)
 
     donations: Mapped[List["Donation"]] = relationship(back_populates="user")
     registrations: Mapped[List["EventRegistration"]] = relationship(back_populates="user", cascade="all, delete-orphan")

@@ -100,7 +100,6 @@ class MockLocation:
             "other_university_external_donor",
             [
                 ("callback", "category_external"),
-                ("callback", "university_other"),
                 ("message", "МГУ"),
                 ("message", "ВМК"),
                 ("message", "231"),

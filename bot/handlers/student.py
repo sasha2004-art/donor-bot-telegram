@@ -141,8 +141,11 @@ async def show_survey_or_events(callback: types.CallbackQuery, session: AsyncSes
         return
 
     # Проверяем, есть ли сегодня мероприятие
-    today_event = await event_requests.get_today_event(session)
-    if today_event:
+    events = await event_requests.get_active_events_for_user(session, user.id)
+    today = datetime.date.today()
+    is_today_event_available = any(event.event_datetime.date() == today for event in events)
+
+    if is_today_event_available:
         await show_events_for_registration(callback.message, session, user.id)
         return
 

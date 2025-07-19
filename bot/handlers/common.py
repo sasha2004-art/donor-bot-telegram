@@ -10,6 +10,7 @@ from bot.db import user_requests
 from bot.states.states import Registration
 from bot.keyboards import reply, inline
 from bot.utils.text_messages import Text
+from bot.utils.graduation import calculate_graduation_year
 from bot.filters.role import RoleFilter
 
 ROLE_MENU_MAP = {
@@ -156,11 +157,10 @@ async def process_full_name(message: types.Message, state: FSMContext):
 async def process_category(callback: types.CallbackQuery, state: FSMContext):
     category = callback.data.split('_', 1)[1]
     await state.update_data(category=category)
-    
+
     if category == 'external':
-        await state.update_data(university=None, faculty=None, study_group=None)
-        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
-        await state.set_state(Registration.awaiting_gender)
+        await callback.message.edit_text(Text.GET_CUSTOM_UNIVERSITY)
+        await state.set_state(Registration.awaiting_custom_university_name)
     else:
         await callback.message.edit_text(Text.GET_UNIVERSITY, reply_markup=inline.get_university_keyboard())
         await state.set_state(Registration.awaiting_university)
@@ -263,6 +263,8 @@ async def process_consent(callback: types.CallbackQuery, state: FSMContext, sess
     user_data.setdefault('faculty', 'Не указан')
     user_data.setdefault('study_group', 'Не указана')
     
+    user_data['graduation_year'] = calculate_graduation_year(user_data.get('study_group'))
+
     new_user = await user_requests.add_user(session, user_data)
     await session.commit()
     await state.clear()

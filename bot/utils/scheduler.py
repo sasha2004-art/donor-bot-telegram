@@ -12,6 +12,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.base import StorageKey
 from bot.states.states import FeedbackSurvey
 from bot.keyboards import inline
+from bot.utils.graduation import check_graduation_status
 
 
 logger = logging.getLogger(__name__)
@@ -245,7 +246,17 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
         args=[bot, session_pool]
     )
 
-    logger.info("Scheduler configured successfully with 6 jobs.")
+    scheduler.add_job(
+        check_graduation_status,
+        trigger='cron',
+        month=9,
+        day=1,
+        hour=13,
+        minute=0,
+        args=[bot, session_pool]
+    )
+
+    logger.info("Scheduler configured successfully with 7 jobs.")
     return scheduler
 
 async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):
