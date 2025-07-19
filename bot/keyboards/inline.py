@@ -188,10 +188,10 @@ def get_analytics_main_menu_keyboard():
 def get_reports_menu_keyboard():
     builder = InlineKeyboardBuilder()
     # I. Отчеты по активности и лояльности доноров
-    builder.row(InlineKeyboardButton(text="Churn-доноры", callback_data="report_churn_donors"))
+    builder.row(InlineKeyboardButton(text="Доноры-однодневки", callback_data="report_churn_donors"))
     builder.row(InlineKeyboardButton(text="Угасающие доноры", callback_data="report_lapsed_donors"))
     builder.row(InlineKeyboardButton(text="Топ-20 доноров", callback_data="report_top_donors"))
-    builder.row(InlineKeyboardButton(text="Доноры редкой крови", callback_data="report_rare_blood_donors"))
+    # builder.row(InlineKeyboardButton(text="Доноры редкой крови", callback_data="report_rare_blood_donors"))
     # II. Отчеты по сегментации и демографии
     builder.row(InlineKeyboardButton(text="Самые активные факультеты", callback_data="report_top_faculties"))
     builder.row(InlineKeyboardButton(text="Кандидаты в регистр ДКМ", callback_data="report_dkm_candidates"))

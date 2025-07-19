@@ -1,3 +1,0 @@
-ERROR    main:main.py:95 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%2C%22username%22%3A%22test%22%7D&hash=125b98532e863d708dcf6141ea32692de0537a3a4a18cbe18b38e5abcdefghij'
-ERROR    main:main.py:95 Telegram WebApp data validation failed: Hash not found in auth data. Raw auth_data: 'user=%7B%22id%22%3A+123%7D&auth_date=1700000000'
-ERROR    main:main.py:95 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%7D&hash=40f05e5ab6663c9f1ef8c1ce079b8ae543366d3c47562462714dcd19790c2116&new_param=hacker'

@@ -364,3 +364,37 @@ async def test_admin_can_view_feedback(session: AsyncSession):
     assert "Event With Feedback" in sent_text
     assert "User One" in sent_text
     assert "Всё" in sent_text
+
+@pytest.mark.asyncio
+async def test_process_category_external_donor():
+    # Arrange
+    storage = MemoryStorage()
+    state = FSMContext(storage, key=Mock(bot_id=1, chat_id=1, user_id=1))
+
+    message = Mock(
+        edit_text=AsyncMock()
+    )
+    callback = Mock(
+        data="category_external",
+        message=message,
+        answer=AsyncMock()
+    )
+
+    # Act
+    await common_handlers.process_category(callback, state)
+
+    # Assert
+    data = await state.get_data()
+    assert data['category'] == 'external'
+    assert data['university'] == 'Внешний донор'
+    assert data['faculty'] == 'Не применимо'
+    assert data['study_group'] == '-'
+
+    current_state = await state.get_state()
+    assert current_state == Registration.awaiting_gender
+
+    message.edit_text.assert_called_once_with(
+        Text.GET_GENDER,
+        reply_markup=inline.get_gender_inline_keyboard()
+    )
+    callback.answer.assert_called_once()

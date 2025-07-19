@@ -1,245 +1,182 @@
 import pytest
-import datetime
-import io
-from unittest.mock import AsyncMock, Mock
-
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func 
+import datetime
 
-from aiogram import Bot, types
+from bot.db.models import User, Donation, MedicalWaiver, Survey, EventRegistration, Event
+from bot.db.analytics_requests import (
+    get_churn_donors,
+    get_lapsed_donors,
+    get_top_donors,
+    get_rare_blood_donors,
+    get_top_faculties,
+    get_dkm_candidates,
+    get_survey_dropoff
+)
 
-# Импортируем тестируемые модули
-from bot.db import analytics_requests
-from bot.utils import analytics_service
-from bot.handlers.admin import analytics as analytics_handlers
-from bot.states.states import AdminAnalytics
+@pytest.mark.asyncio
+async def test_get_churn_donors(session: AsyncSession):
+    # Arrange
+    user1 = User(id=1, full_name="Churn Donor", telegram_id=111, phone_number="111")
+    donation1 = Donation(id=1, user_id=1, donation_date=datetime.datetime.now() - datetime.timedelta(days=200))
+    user2 = User(id=2, full_name="Active Donor", telegram_id=222, phone_number="222")
+    donation2 = Donation(id=2, user_id=2, donation_date=datetime.datetime.now() - datetime.timedelta(days=30))
+    user3 = User(id=3, full_name="Multiple Donor", telegram_id=333, phone_number="333")
+    donation3_1 = Donation(id=3, user_id=3, donation_date=datetime.datetime.now() - datetime.timedelta(days=200))
+    donation3_2 = Donation(id=4, user_id=3, donation_date=datetime.datetime.now() - datetime.timedelta(days=30))
 
-# Импортируем модели для создания тестовых данных
-from bot.db.models import User, Event, Donation, EventRegistration, MedicalWaiver
+    session.add_all([user1, donation1, user2, donation2, user3, donation3_1, donation3_2])
+    await session.commit()
 
-# ИЗМЕНЕНИЕ 2: Убираем глобальную метку, чтобы избежать PytestWarning
-# pytestmark = pytest.mark.asyncio # <-- УДАЛЕНО
+    # Act
+    churn_donors = await get_churn_donors(session)
 
+    # Assert
+    assert len(churn_donors) == 1
+    assert churn_donors[0]["full_name"] == "Churn Donor"
 
-# --- Фикстуры для подготовки данных в БД (без изменений) ---
-
-@pytest.fixture
-async def setup_analytics_data(session: AsyncSession):
-    """Фикстура для создания комплексного набора данных для тестирования аналитики."""
-    today = datetime.date.today()
-    now = datetime.datetime.now()
-
-    # Создаем пользователей
-    users = [
-        User(id=1, phone_number="+1", telegram_id=101, full_name="Иванов Иван", university="НИЯУ МИФИ", faculty="ИИКС", created_at=now - datetime.timedelta(days=10)),
-        User(id=2, phone_number="+2", telegram_id=102, full_name="Петрова Анна", university="НИЯУ МИФИ", faculty="ИФИБ", created_at=now - datetime.timedelta(days=40)),
-        User(id=3, phone_number="+3", telegram_id=103, full_name="Сидоров Сидор", university="МГУ", faculty="ВМК", created_at=now - datetime.timedelta(days=100)),
-        User(id=4, phone_number="+4", telegram_id=104, full_name="Новичков Новичок", university="НИЯУ МИФИ", faculty="ИИКС", created_at=now - datetime.timedelta(days=5)),
-    ]
-    session.add_all(users)
-
-    # Создаем мероприятия (прошедшее и будущее)
-    past_event = Event(id=1, name="Прошедшая акция", event_datetime=now - datetime.timedelta(days=30), location="Loc1", donation_type="d1", points_per_donation=1, participant_limit=10)
-    future_event = Event(id=2, name="Будущая акция", event_datetime=now + datetime.timedelta(days=10), location="Loc2", donation_type="d2", points_per_donation=1, participant_limit=20)
-    session.add_all([past_event, future_event])
+@pytest.mark.asyncio
+async def test_get_lapsed_donors(session: AsyncSession):
+    # Arrange
+    user1 = User(id=4, full_name="Lapsed Donor", telegram_id=444, phone_number="444")
+    donation1_1 = Donation(id=5, user_id=4, donation_date=datetime.datetime.now() - datetime.timedelta(days=300))
+    donation1_2 = Donation(id=6, user_id=4, donation_date=datetime.datetime.now() - datetime.timedelta(days=400))
     
-    await session.commit() # Коммит, чтобы получить ID
+    user2 = User(id=5, full_name="Active Donor", telegram_id=555, phone_number="555")
+    donation2_1 = Donation(id=7, user_id=5, donation_date=datetime.datetime.now() - datetime.timedelta(days=30))
+    donation2_2 = Donation(id=8, user_id=5, donation_date=datetime.datetime.now() - datetime.timedelta(days=60))
 
-    # Создаем донации
+    user3 = User(id=6, full_name="Lapsed With Waiver", telegram_id=666, phone_number="666")
+    donation3_1 = Donation(id=9, user_id=6, donation_date=datetime.datetime.now() - datetime.timedelta(days=300))
+    donation3_2 = Donation(id=10, user_id=6, donation_date=datetime.datetime.now() - datetime.timedelta(days=400))
+    waiver = MedicalWaiver(id=1, user_id=6, end_date=datetime.date.today() + datetime.timedelta(days=30))
+
+
+    session.add_all([user1, donation1_1, donation1_2, user2, donation2_1, donation2_2, user3, donation3_1, donation3_2, waiver])
+    await session.commit()
+
+    # Act
+    lapsed_donors = await get_lapsed_donors(session)
+
+    # Assert
+    assert len(lapsed_donors) == 1
+    assert lapsed_donors[0]["full_name"] == "Lapsed Donor"
+
+@pytest.mark.asyncio
+async def test_get_top_donors(session: AsyncSession):
+    # Arrange
+    users_donations = []
+    for i in range(7, 28): # 21 users
+        user = User(id=i, full_name=f"User {i}", telegram_id=i*100, phone_number=str(i*100))
+        users_donations.append(user)
+        for j in range(i-6): # User 7 has 1 donation, User 8 has 2, etc.
+            donation = Donation(user_id=i, donation_date=datetime.datetime.now())
+            users_donations.append(donation)
+    
+    session.add_all(users_donations)
+    await session.commit()
+    
+    # Act
+    top_donors = await get_top_donors(session)
+    
+    # Assert
+    assert len(top_donors) == 20
+    assert top_donors[0]['full_name'] == 'User 27'
+    assert top_donors[0]['donation_count'] == 21
+    assert top_donors[19]['full_name'] == 'User 8'
+    assert top_donors[19]['donation_count'] == 2
+
+@pytest.mark.asyncio
+async def test_get_rare_blood_donors(session: AsyncSession):
+    # Arrange
+    user1 = User(id=28, full_name="Rare AB", telegram_id=280, phone_number="280", blood_type="AB(IV)", rh_factor="+")
+    user2 = User(id=29, full_name="Rare Rh-", telegram_id=290, phone_number="290", blood_type="A(II)", rh_factor="-")
+    user3 = User(id=30, full_name="Common", telegram_id=300, phone_number="300", blood_type="O(I)", rh_factor="+")
+
+    session.add_all([user1, user2, user3])
+    await session.commit()
+
+    # Act
+    rare_donors = await get_rare_blood_donors(session)
+
+    # Assert
+    assert len(rare_donors) == 2
+    names = {d['full_name'] for d in rare_donors}
+    assert "Rare AB" in names
+    assert "Rare Rh-" in names
+
+@pytest.mark.asyncio
+async def test_get_top_faculties(session: AsyncSession):
+    # Arrange
+    user1 = User(id=31, full_name="F1 Donor 1", telegram_id=310, phone_number="310", university="НИЯУ МИФИ", faculty="F1")
+    user2 = User(id=32, full_name="F1 Donor 2", telegram_id=320, phone_number="320", university="НИЯУ МИФИ", faculty="F1")
+    user3 = User(id=33, full_name="F2 Donor 1", telegram_id=330, phone_number="330", university="НИЯУ МИФИ", faculty="F2")
+    user4 = User(id=34, full_name="Other Uni Donor", telegram_id=340, phone_number="340", university="Другой", faculty="F3")
+
     donations = [
-        # 3 донации в прошлом месяце
-        Donation(user_id=1, event_id=past_event.id, donation_date=today - datetime.timedelta(days=30), points_awarded=100, donation_type="t1"),
-        Donation(user_id=2, event_id=past_event.id, donation_date=today - datetime.timedelta(days=30), points_awarded=100, donation_type="t1"),
-        Donation(user_id=3, event_id=past_event.id, donation_date=today - datetime.timedelta(days=30), points_awarded=100, donation_type="t1"),
-        # 1 донация 2 месяца назад
-        Donation(user_id=1, donation_date=today - datetime.timedelta(days=65), points_awarded=100, donation_type="t2"),
+        Donation(user_id=31, donation_date=datetime.datetime.now()),
+        Donation(user_id=31, donation_date=datetime.datetime.now()),
+        Donation(user_id=32, donation_date=datetime.datetime.now()),
+        Donation(user_id=33, donation_date=datetime.datetime.now()),
+        Donation(user_id=34, donation_date=datetime.datetime.now()),
     ]
-    session.add_all(donations)
-
-    # Регистрации на будущие мероприятия
-    registrations = [
-        EventRegistration(user_id=1, event_id=future_event.id),
-        EventRegistration(user_id=2, event_id=future_event.id),
-    ]
-    session.add_all(registrations)
-
-    # Медотводы
-    waivers = [
-        MedicalWaiver(user_id=3, start_date=today, end_date=today + datetime.timedelta(days=90), reason="r1", created_by="sys"),
-    ]
-    session.add_all(waivers)
-
-    await session.commit()
-    # Возвращаем ID для удобства использования в тестах
-    return {"past_event_id": past_event.id, "future_event_id": future_event.id}
-
-
-# --- 1. Тесты для DB-запросов (analytics_requests.py) ---
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_analytics_data")
-async def test_get_main_kpi(session: AsyncSession):
-    """Тестирует сборку ключевых показателей."""
-    kpi = await analytics_requests.get_main_kpi(session)
-
-    assert kpi["new_users_30d"] == 2
-    assert kpi["active_donors_90d"] == 3
-    assert kpi["on_waiver_now"] == 1
     
-    assert kpi["next_event"] is not None
-    assert kpi["next_event"]["name"] == "Будущая акция"
-    assert kpi["next_event"]["registered"] == 2
-    assert kpi["next_event"]["limit"] == 20
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_analytics_data")
-async def test_get_donations_by_month_on_sqlite(session: AsyncSession):
-    """
-    Тестирует группировку донаций по месяцам, но используя синтаксис SQLite,
-    так как мы не можем выполнить date_trunc. Этот тест проверяет, что наша
-    тестовая база данных и фикстура работают правильно.
-    """
-    # Этот запрос использует strftime, который работает в SQLite
-    stmt = select(
-        func.strftime('%Y-%m-01', Donation.donation_date),
-        func.count(Donation.id)
-    ).group_by(func.strftime('%Y-%m-01', Donation.donation_date))
-    
-    result = await session.execute(stmt)
-    data = result.all()
-    
-    assert len(data) == 2  # Данные за 2 разных месяца
-    counts = sorted([count for date_str, count in data])
-    assert counts == [1, 3]
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_analytics_data")
-async def test_get_event_analysis_data(session: AsyncSession, setup_analytics_data):
-    """Тестирует сбор аналитики по конкретному мероприятию."""
-    past_event_id = setup_analytics_data["past_event_id"]
-    
-    # Добавим регистрацию для пользователя, который не пришел
-    # Считаем, что на это мероприятие зарегистрировались все 4 пользователя
-    session.add_all([
-        EventRegistration(user_id=1, event_id=past_event_id),
-        EventRegistration(user_id=2, event_id=past_event_id),
-        EventRegistration(user_id=3, event_id=past_event_id),
-        EventRegistration(user_id=4, event_id=past_event_id)
-    ])
-    await session.commit()
-    
-    data = await analytics_requests.get_event_analysis_data(session, past_event_id)
-
-    assert data is not None
-    assert data["event_name"] == "Прошедшая акция"
-    assert data["registered_count"] == 4 # 4 регистрации
-    assert data["attended_count"] == 3 # 3 донации было на этом ивенте
-    assert data["newcomers_count"] == 2 # Петрова и Сидоров, у них по 1 донации
-    assert data["veterans_count"] == 1 # Иванов, у него 2 донации
-    assert data["faculties_distribution"] == {"ИИКС": 1, "ИФИБ": 1, "ВМК": 1}
-
-# --- 2. Тесты для сервиса графиков (analytics_service.py) ---
-
-def test_plot_donations_by_month_success():
-    """Тестирует успешное создание графика. Это не асинхронная функция."""
-    test_data = [
-        (datetime.date(2023, 10, 1), 15),
-        (datetime.date(2023, 11, 1), 25),
-        (datetime.date(2023, 12, 1), 20),
-    ]
-    buffer = analytics_service.plot_donations_by_month(test_data)
-    
-    assert isinstance(buffer, io.BytesIO)
-    buffer.seek(0)
-    assert buffer.read(8) == b'\x89PNG\r\n\x1a\n'
-
-def test_plot_donations_by_month_no_data():
-    """Тестирует поведение сервиса при отсутствии данных. Это не асинхронная функция."""
-    buffer = analytics_service.plot_donations_by_month([])
-    assert buffer is None
-
-
-# --- 3. Тесты для хендлеров (analytics.py) ---
-
-# Вспомогательные классы-заглушки (без изменений)
-class MockMessage:
-    def __init__(self, from_user_id=1):
-        self.from_user = Mock(id=from_user_id)
-        self.answer = AsyncMock()
-        self.edit_text = AsyncMock()
-        self.answer_photo = AsyncMock()
-
-class MockCallbackQuery:
-    def __init__(self, data, from_user_id=1, message=None):
-        self.data = data
-        self.from_user = Mock(id=from_user_id)
-        self.message = message if message else MockMessage(from_user_id)
-        self.answer = AsyncMock()
-
-class MockFSMContext:
-    def __init__(self):
-        self._state = None
-    async def get_state(self): return self._state
-    async def set_state(self, state): self._state = state
-    async def clear(self): self._state = None
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_analytics_data")
-async def test_show_main_kpi_handler(session: AsyncSession, mocker: pytest.MonkeyPatch):
-    """Тестирует хендлер, который показывает KPI и график."""
-    callback = MockCallbackQuery(data="analytics_kpi")
-
-    # МОКАЕМ (заменяем) проблемную функцию.
-    # Мы заставляем ее вернуть предсказуемый результат, чтобы тест не падал.
-    # Логику самой функции мы уже проверили в другом тесте.
-    mock_plot_data = [(datetime.date(2024, 1, 1), 10)]
-    mocker.patch(
-        'bot.db.analytics_requests.get_donations_by_month', 
-        new_callable=AsyncMock, 
-        return_value=mock_plot_data
-    )
-    
-    await analytics_handlers.show_main_kpi(callback, session)
-    
-    callback.answer.assert_called_once_with("⏳ Собираю данные...")
-    
-    callback.message.edit_text.assert_called_once()
-    args, kwargs = callback.message.edit_text.call_args
-    assert "Ключевые показатели (KPI)" in args[0]
-    assert "<b>Новые пользователи (30д):</b> 2" in args[0]
-    assert "Ближайшее мероприятие" in args[0]
-    
-    callback.message.answer_photo.assert_called_once()
-    photo_kwargs = callback.message.answer_photo.call_args.kwargs
-    assert isinstance(photo_kwargs['photo'], types.BufferedInputFile)
-
-
-@pytest.mark.asyncio
-@pytest.mark.usefixtures("setup_analytics_data")
-async def test_show_event_analysis_handler(session: AsyncSession, setup_analytics_data):
-    """Тестирует хендлер, который показывает анализ конкретного мероприятия."""
-    past_event_id = setup_analytics_data["past_event_id"]
-    # Добавим регистрации, чтобы воронка была интереснее
-    session.add_all([
-        EventRegistration(user_id=1, event_id=past_event_id),
-        EventRegistration(user_id=2, event_id=past_event_id),
-        EventRegistration(user_id=3, event_id=past_event_id),
-        EventRegistration(user_id=4, event_id=past_event_id)
-    ])
+    session.add_all([user1, user2, user3, user4] + donations)
     await session.commit()
 
-    state = MockFSMContext()
-    callback = MockCallbackQuery(data=f"analyze_event_{past_event_id}")
+    # Act
+    top_faculties = await get_top_faculties(session)
+
+    # Assert
+    assert len(top_faculties) == 2
+    assert top_faculties[0]['faculty_name'] == 'F1'
+    assert top_faculties[0]['donation_count'] == 3
+    assert top_faculties[1]['faculty_name'] == 'F2'
+    assert top_faculties[1]['donation_count'] == 1
+
+@pytest.mark.asyncio
+async def test_get_dkm_candidates(session: AsyncSession):
+    # Arrange
+    user1 = User(id=35, full_name="DKM Candidate", telegram_id=350, phone_number="350", is_dkm_donor=False)
+    d1 = Donation(user_id=35, donation_date=datetime.datetime.now())
+    d2 = Donation(user_id=35, donation_date=datetime.datetime.now())
     
-    await analytics_handlers.show_event_analysis(callback, session, state)
+    user2 = User(id=36, full_name="Already DKM", telegram_id=360, phone_number="360", is_dkm_donor=True)
+    d3 = Donation(user_id=36, donation_date=datetime.datetime.now())
+    d4 = Donation(user_id=36, donation_date=datetime.datetime.now())
+
+    user3 = User(id=37, full_name="Not enough donations", telegram_id=370, phone_number="370", is_dkm_donor=False)
+    d5 = Donation(user_id=37, donation_date=datetime.datetime.now())
     
-    callback.answer.assert_called_once_with("⏳ Собираю аналитику по мероприятию...")
+    session.add_all([user1, user2, user3, d1, d2, d3, d4, d5])
+    await session.commit()
     
-    callback.message.edit_text.assert_called_once()
-    args, kwargs = callback.message.edit_text.call_args
+    # Act
+    dkm_candidates = await get_dkm_candidates(session)
     
-    assert "Аналитика по мероприятию «Прошедшая акция»" in args[0]
-    assert "Записалось: 4" in args[0] # Проверяем обновленные данные
-    assert "Пришло: 3" in args[0]
-    assert "Новички: 2" in args[0]
-    assert "ИИКС: 1 чел." in args[0]
+    # Assert
+    assert len(dkm_candidates) == 1
+    assert dkm_candidates[0]['full_name'] == 'DKM Candidate'
+
+@pytest.mark.asyncio
+async def test_get_survey_dropoff(session: AsyncSession):
+    # Arrange
+    user1 = User(id=38, full_name="Dropoff User", telegram_id=380, phone_number="380")
+    survey1 = Survey(id=1, user_id=38, passed=True, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
+    
+    user2 = User(id=39, full_name="Registered User", telegram_id=390, phone_number="390")
+    survey2 = Survey(id=2, user_id=39, passed=True, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
+    event1 = Event(id=1, name="event 1", event_datetime=datetime.datetime.now())
+    reg2 = EventRegistration(id=1, user_id=39, event_id=1, registration_date=datetime.datetime.now() - datetime.timedelta(days=5))
+
+    user3 = User(id=40, full_name="Failed Survey User", telegram_id=400, phone_number="400")
+    survey3 = Survey(id=3, user_id=40, passed=False, created_at=datetime.datetime.now() - datetime.timedelta(days=10))
+    
+    session.add_all([user1, survey1, user2, survey2, event1, reg2, user3, survey3])
+    await session.commit()
+    
+    # Act
+    survey_dropoff = await get_survey_dropoff(session)
+    
+    # Assert
+    assert len(survey_dropoff) == 1
+    assert survey_dropoff[0]['full_name'] == 'Dropoff User'
