@@ -90,8 +90,17 @@ async def import_data_start(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text("Отправьте .xlsx файл для импорта/обновления данных пользователей. Обязательные колонки: `phone_number` (для поиска), `full_name`, `university`.")
     await callback.answer()
 
-@router.message(DataImport.awaiting_file, F.document)
-async def process_import_file(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
+@router.callback_query(F.data == "ma_import_old_db", RoleFilter('main_admin'))
+async def import_old_db_start(callback: types.CallbackQuery, state: FSMContext):
+    await state.set_state(DataImport.awaiting_old_db_file)
+    await callback.message.edit_text("Отправьте .xlsx файл для импорта старой базы данных.")
+    await callback.answer()
+
+
+from bot.utils.data_import import import_data_from_file
+
+@router.message(DataImport.awaiting_old_db_file, F.document)
+async def process_import_old_db_file(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
     if not message.document.file_name.endswith('.xlsx'):
         await message.answer("Неверный формат файла. Пожалуйста, отправьте файл .xlsx")
         return
@@ -103,46 +112,7 @@ async def process_import_file(message: types.Message, state: FSMContext, session
     file_bytes = await bot.download_file(file_info.file_path)
 
     try:
-        df = pd.read_excel(file_bytes)
-        
-        required_cols = ['phone_number', 'full_name', 'university']
-        if not all(col in df.columns for col in required_cols):
-            await status_msg.edit_text(f"Ошибка: в файле отсутствуют обязательные колонки ({', '.join(required_cols)}).")
-            return
-            
-        created_count = 0
-        updated_count = 0
-
-        for index, row in df.iterrows():
-            phone = str(row['phone_number'])
-            user = await user_requests.get_user_by_phone(session, phone)
-            
-            user_data = {
-                'full_name': row.get('full_name'),
-                'university': row.get('university'),
-                'faculty': row.get('faculty'),
-                'study_group': row.get('study_group'),
-                'blood_type': row.get('blood_type'),
-                'rh_factor': row.get('rh_factor'),
-                'gender': row.get('gender'),
-                'points': row.get('points', 0),
-                'role': row.get('role', 'student'),
-                'is_dkm_donor': bool(row.get('is_dkm_donor', False))
-            }
-            user_data = {k: v for k, v in user_data.items() if pd.notna(v)}
-
-            if user:
-                await user_requests.update_user_profile(session, user.id, user_data)
-                updated_count += 1
-            else:
-                full_data = user_data.copy()
-                full_data['phone_number'] = phone
-                full_data['telegram_id'] = 0
-                full_data['telegram_username'] = f"import_{phone}"
-                await user_requests.add_user(session, full_data)
-                created_count += 1
-        
-        await session.commit()
+        created_count, updated_count = await import_data_from_file(session, file_bytes)
         await status_msg.edit_text(f"✅ Импорт завершен!\n\n- Создано новых пользователей: {created_count}\n- Обновлено существующих: {updated_count}")
         
     except Exception as e:

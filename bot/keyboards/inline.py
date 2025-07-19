@@ -159,6 +159,7 @@ def get_admin_panel_keyboard(viewer_role: str):
         types.InlineKeyboardButton(text="💾 Экспорт данных", callback_data="ma_export_data"),
         types.InlineKeyboardButton(text="📥 Импорт данных", callback_data="ma_import_data")
         )
+        builder.row(types.InlineKeyboardButton(text="📥 Импорт старой БД", callback_data="ma_import_old_db"))
     builder.row(InlineKeyboardButton(text="👤 Перейти в режим донора", callback_data="switch_to_donor_view"))
     return builder.as_markup()
 

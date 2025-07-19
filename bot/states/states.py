@@ -114,3 +114,4 @@ class AnswerQuestion(StatesGroup):
     
 class DataImport(StatesGroup):
     awaiting_file = State()
+    awaiting_old_db_file = State()
