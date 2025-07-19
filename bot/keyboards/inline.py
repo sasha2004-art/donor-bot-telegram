@@ -371,9 +371,9 @@ def get_mailing_audience_keyboard(current_filters: dict = None):
     builder.row(InlineKeyboardButton(text="📢 Всем пользователям", callback_data="mail_filter_role_all"))
     builder.row(InlineKeyboardButton(text="⭐ Волонтерам и админам", callback_data="mail_filter_role_volunteers"))
     builder.row(InlineKeyboardButton(text="⚙️ Только администраторам", callback_data="mail_filter_role_admins"))
-    builder.row(InlineKeyboardButton(text="-"*25, callback_data="ignore")) 
+    # builder.row(InlineKeyboardButton(text="-"*25, callback_data="ignore")) 
 
-    builder.row(InlineKeyboardButton(text="🎓 По ВУЗу", callback_data="mail_audience_type_university"))
+    # builder.row(InlineKeyboardButton(text="🎓 По ВУЗу", callback_data="mail_audience_type_university"))
     builder.row(InlineKeyboardButton(text="🏛️ По факультету", callback_data="mail_audience_type_faculty"))
     
     if current_filters:
