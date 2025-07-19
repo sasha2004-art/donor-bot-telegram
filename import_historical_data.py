@@ -6,9 +6,13 @@ from bot.db.models import User, Donation
 from bot.db import user_requests
 import datetime
 from bot.config_reader import config
+import os
 from dotenv import load_dotenv
 
-load_dotenv()
+# Construct the path to the .env file
+dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(dotenv_path):
+    load_dotenv(dotenv_path)
 
 
 async def main():
