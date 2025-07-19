@@ -6,14 +6,11 @@ from sqlalchemy.orm import joinedload
 from bot.utils.text_messages import Text
 
 async def get_active_events(session: AsyncSession) -> list[Event]:
-    """Получает активные мероприятия, которые еще не начались."""
+    """Получает активные мероприятия."""
     stmt = (
         select(Event)
-        .where(
-            Event.is_active == True,
-            Event.event_datetime >= datetime.datetime.now()
-        )
-        .order_by(Event.event_datetime)
+        .where(Event.is_active == True)
+        .order_by(Event.event_datetime.desc())
     )
     result = await session.execute(stmt)
     return result.scalars().all()
