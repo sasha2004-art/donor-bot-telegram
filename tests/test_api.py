@@ -17,14 +17,15 @@ async def override_get_session():
 
 from main import async_session_maker as main_session_maker
 
-app.dependency_overrides[main_session_maker] = override_get_session
 
 pytestmark = pytest.mark.asyncio
 
 @pytest_asyncio.fixture
 async def client():
+    app.dependency_overrides[main_session_maker] = override_get_session
     async with AsyncClient(app=app, base_url="http://test") as ac:
         yield ac
+    app.dependency_overrides = {}
 
 # --- Тесты ---
 

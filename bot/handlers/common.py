@@ -192,14 +192,10 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
         await state.update_data(university="Внешний донор", faculty="Не применимо", study_group="-")
         await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
         await state.set_state(Registration.awaiting_gender)
-    elif category == 'student':
+    elif category in ('student', 'employee'):
         await state.update_data(university="НИЯУ МИФИ")
         await callback.message.edit_text(Text.GET_FACULTY, reply_markup=inline.get_faculties_keyboard())
         await state.set_state(Registration.awaiting_faculty)
-    else: # employee
-        await state.update_data(university="НИЯУ МИФИ", faculty="Сотрудник", study_group="-")
-        await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
-        await state.set_state(Registration.awaiting_gender)
 
     await callback.answer()
 
@@ -208,16 +204,30 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
 
 @router.callback_query(Registration.awaiting_faculty, F.data.startswith('faculty_'))
 async def process_faculty(callback: types.CallbackQuery, state: FSMContext):
-    faculty = callback.data.split('_', 1)[1]
+    faculty_code = callback.data.split('_', 1)[1]
     
-    if faculty == 'Other':
+    if faculty_code == 'Other':
         await callback.message.edit_text(Text.GET_CUSTOM_FACULTY)
         await state.set_state(Registration.awaiting_custom_faculty_name)
     else:
-        await state.update_data(faculty=faculty)
-        await callback.message.edit_text(Text.FACULTY_SELECTED.format(faculty=faculty))
-        await callback.message.answer(Text.GET_GROUP)
-        await state.set_state(Registration.awaiting_study_group)
+        # Ищем текст кнопки по callback_data
+        faculty_name = "Неизвестно"
+        for row in callback.message.reply_markup.inline_keyboard:
+            for button in row:
+                if button.callback_data == callback.data:
+                    faculty_name = button.text
+                    break
+
+        await state.update_data(faculty=faculty_name)
+        user_data = await state.get_data()
+        if user_data.get("category") == "employee":
+            await state.update_data(study_group="-")
+            await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+            await state.set_state(Registration.awaiting_gender)
+        else:
+            await callback.message.edit_text(Text.FACULTY_SELECTED.format(faculty=faculty_name))
+            await callback.message.answer(Text.GET_GROUP)
+            await state.set_state(Registration.awaiting_study_group)
     
     await callback.answer()
 
