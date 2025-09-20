@@ -1,116 +1,114 @@
 ==================== СТРУКТУРА ПРОЕКТА ====================
 
-.
+Mihi donor bot/
+├── alembic/
+│   ├── README
+│   ├── env.py
+│   └── script.py.mako
+├── bot/
+│   ├── db/
+│   │   ├── __init__.py
+│   │   ├── admin_requests.py
+│   │   ├── analytics_requests.py
+│   │   ├── engine.py
+│   │   ├── event_requests.py
+│   │   ├── info_requests.py
+│   │   ├── merch_requests.py
+│   │   ├── models.py
+│   │   ├── qa_management.py
+│   │   ├── question_requests.py
+│   │   └── user_requests.py
+│   ├── filters/
+│   │   └── role.py
+│   ├── handlers/
+│   │   ├── admin/
+│   │   │   ├── __init__.py
+│   │   │   ├── analytics.py
+│   │   │   ├── event_management.py
+│   │   │   ├── info_management.py
+│   │   │   ├── mailing.py
+│   │   │   ├── merch_management.py
+│   │   │   ├── qa_management.py
+│   │   │   ├── system.py
+│   │   │   └── user_management.py
+│   │   ├── __init__.py
+│   │   ├── common.py
+│   │   ├── main_admin.py
+│   │   ├── other.py
+│   │   ├── student.py
+│   │   └── volunteer.py
+│   ├── keyboards/
+│   │   ├── __init__.py
+│   │   ├── inline.py
+│   │   └── reply.py
+│   ├── middlewares/
+│   │   ├── __init__.py
+│   │   ├── block.py
+│   │   └── db.py
+│   ├── states/
+│   │   ├── __init__.py
+│   │   └── states.py
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   ├── analytics_service.py
+│   │   ├── calendar_service.py
+│   │   ├── data_import.py
+│   │   ├── graduation.py
+│   │   ├── qr_service.py
+│   │   ├── scheduler.py
+│   │   └── text_messages.py
+│   ├── __init__.py
+│   └── config_reader.py
+├── donor_bot_telegram.egg-info/
+│   ├── PKG-INFO
+│   ├── SOURCES.txt
+│   ├── dependency_links.txt
+│   └── top_level.txt
+├── tests/
+│   ├── __init__.py
+│   ├── conftest.py
+│   ├── test_admin_fsm.py
+│   ├── test_analytics.py
+│   ├── test_api.py
+│   ├── test_calendar_service.py
+│   ├── test_data_io.py
+│   ├── test_db_requests.py
+│   ├── test_filters.py
+│   ├── test_fsm_unhappy_paths.py
+│   ├── test_graduation.py
+│   ├── test_handlers_logic.py
+│   ├── test_keyboards.py
+│   ├── test_mailing_logic.py
+│   ├── test_middlewares.py
+│   ├── test_registration_logic.py
+│   ├── test_scheduler_config.py
+│   ├── test_scheduler_logic.py
+│   ├── test_security.py
+│   ├── test_survey_logic.py
+│   ├── test_utils.py
+│   └── test_volunteer_fsm.py
+├── webapp/
+│   └── index.html
+├── .env
+├── .env.example
+├── .gitignore
 ├── Dockerfile
 ├── README.md
-├── alembic
-│   ├── README
-│   ├── env.py
-│   └── script.py.mako
 ├── alembic.ini
-├── all_code.txt
-├── bot
-│   ├── __init__.py
-│   ├── config_reader.py
-│   ├── db
-│   │   ├── __init__.py
-│   │   ├── admin_requests.py
-│   │   ├── analytics_requests.py
-│   │   ├── engine.py
-│   │   ├── event_requests.py
-│   │   ├── info_requests.py
-│   │   ├── merch_requests.py
-│   │   ├── models.py
-│   │   ├── qa_management.py
-│   │   ├── question_requests.py
-│   │   └── user_requests.py
-│   ├── filters
-│   │   └── role.py
-│   ├── handlers
-│   │   ├── __init__.py
-│   │   ├── admin
-│   │   │   ├── __init__.py
-│   │   │   ├── analytics.py
-│   │   │   ├── event_management.py
-│   │   │   ├── info_management.py
-│   │   │   ├── mailing.py
-│   │   │   ├── merch_management.py
-│   │   │   ├── qa_management.py
-│   │   │   ├── system.py
-│   │   │   └── user_management.py
-│   │   ├── common.py
-│   │   ├── main_admin.py
-│   │   ├── other.py
-│   │   ├── student.py
-│   │   └── volunteer.py
-│   ├── keyboards
-│   │   ├── __init__.py
-│   │   ├── inline.py
-│   │   └── reply.py
-│   ├── middlewares
-│   │   ├── __init__.py
-│   │   ├── block.py
-│   │   └── db.py
-│   ├── states
-│   │   ├── __init__.py
-│   │   └── states.py
-│   └── utils
-│       ├── __init__.py
-│       ├── analytics_service.py
-│       ├── calendar_service.py
-│       ├── data_import.py
-│       ├── graduation.py
-│       ├── qr_service.py
-│       ├── scheduler.py
-│       └── text_messages.py
-├── collector.py
 ├── collector_faker.py
 ├── docker-compose.yml
-├── donor_bot_telegram.egg-info
-│   ├── PKG-INFO
-│   ├── SOURCES.txt
-│   ├── dependency_links.txt
-│   └── top_level.txt
 ├── main.py
 ├── populate_db.py
 ├── pyproject.toml
 ├── pytest.ini
 ├── requirements-dev.txt
-├── requirements.txt
-├── tests
-│   ├── __init__.py
-│   ├── conftest.py
-│   ├── test_admin_fsm.py
-│   ├── test_analytics.py
-│   ├── test_api.py
-│   ├── test_calendar_service.py
-│   ├── test_data_io.py
-│   ├── test_db_requests.py
-│   ├── test_filters.py
-│   ├── test_fsm_unhappy_paths.py
-│   ├── test_graduation.py
-│   ├── test_handlers_logic.py
-│   ├── test_keyboards.py
-│   ├── test_mailing_logic.py
-│   ├── test_middlewares.py
-│   ├── test_registration_logic.py
-│   ├── test_scheduler_config.py
-│   ├── test_scheduler_logic.py
-│   ├── test_security.py
-│   ├── test_survey_logic.py
-│   ├── test_utils.py
-│   └── test_volunteer_fsm.py
-└── webapp
-    └── index.html
-
-14 directories, 88 files
-
+└── requirements.txt
 
 ==================== СОДЕРЖИМОЕ ФАЙЛОВ ====================
 
 --- НАЧАЛО ФАЙЛА: .env ---
 
-BOT_TOKEN=8140767983:AAFb5JBtnmLOtt-zdesDP016a7NXsLGhq2E
+BOT_TOKEN=8140767983:AAEjtVpc8avWtV86wfpRfW2O9l8SYzbswhM
 SUPER_ADMIN_ID=1031233699
 
 NGROK_AUTHTOKEN=1qZfvDIREz2QtiVo9UL6yNY8v0B_5N2XU9ZjX2DoXpPe8tUae
@@ -138,6 +136,75 @@ venv/
 db_volume/
 
 --- КОНЕЦ ФАЙЛА: .gitignore ---
+
+--- НАЧАЛО ФАЙЛА: Dockerfile ---
+
+FROM python:3.11-slim
+RUN apt-get update && apt-get install -y libzbar0 && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+CMD ["python", "main.py"]
+
+--- КОНЕЦ ФАЙЛА: Dockerfile ---
+
+--- НАЧАЛО ФАЙЛА: README.md ---
+
+Проект "Донор-бот МИФИ"
+Краткое описание решения
+
+необходимо создать файл .env и запомнить его по примеру .env.example
+
+Этот проект представляет собой Telegram-бота, разработанного для донорского движения НИЯУ МИФИ. Бот служит инструментом для упрощения регистрации на Дни Донора (ДД) и оперативного информирования доноров.
+Основной функционал:
+
+    Для доноров:
+        Регистрация и авторизация по номеру телефона.
+        Просмотр личной информации: ФИО, количество донаций, история донаций.
+        Запись на ближайший День Донора.
+        Доступ к информации о донорстве крови и костного мозга.
+        Возможность задать вопрос организаторам.
+    Для организаторов:
+        Управление базой доноров.
+        Создание и управление мероприятиями (Днями Донора).
+        Рассылка сообщений по различным категориям доноров.
+        Просмотр статистики по донорским акциям.
+        Ответы на вопросы пользователей.
+
+Структура проекта
+
+    bot/: Основная папка с кодом бота.
+        db/: Модули для работы с базой данных (модели, запросы).
+        handlers/: Обработчики сообщений, колбэков, разделенные по ролям (администратор, студент, волонтер).
+        keyboards/: Клавиатуры для взаимодействия с ботом.
+        middlewares/: Промежуточные обработчики.
+        states/: Состояния для FSM.
+        utils/: Вспомогательные утилиты (планировщик, QR-коды и т.д.).
+    tests/: Тесты для проверки работоспособности кода.
+    webapp/: Файлы для Telegram Web App.
+    main.py: Точка входа в приложение.
+    docker-compose.yml: Файл для запуска проекта с помощью Docker.
+    requirements.txt: Список зависимостей проекта.
+    Презентация.pptx: Презентация проекта для защиты.
+
+Как запускать проект
+
+Для запуска проекта используется Docker и Docker Compose.
+
+    Клонируйте репозиторий:
+
+    git clone https://github.com/sasha2004-art/donor-bot-telegram
+    cd <название_папки_проекта>
+
+    Создайте и заполните файл .env на основе .env.example. Внесите туда токен вашего бота и другие необходимые данные.
+
+    Запустите проект с помощью Docker Compose:
+
+    docker-compose up --build
+
+    После выполнения этой команды бот будет запущен и готов к работе.
+
+--- КОНЕЦ ФАЙЛА: README.md ---
 
 --- НАЧАЛО ФАЙЛА: alembic.ini ---
 
@@ -257,7 +324,6 @@ formatter = generic
 [formatter_generic]
 format = %(levelname)-5.5s [%(name)s] %(message)s
 datefmt = %H:%M:%S
-
 
 --- КОНЕЦ ФАЙЛА: alembic.ini ---
 
@@ -583,17 +649,6 @@ volumes:
   redis_volume:
 
 --- КОНЕЦ ФАЙЛА: docker-compose.yml ---
-
---- НАЧАЛО ФАЙЛА: Dockerfile ---
-
-FROM python:3.11-slim
-RUN apt-get update && apt-get install -y libzbar0 && rm -rf /var/lib/apt/lists/*
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-CMD ["python", "main.py"]
-
---- КОНЕЦ ФАЙЛА: Dockerfile ---
 
 --- НАЧАЛО ФАЙЛА: main.py ---
 
@@ -1198,64 +1253,6 @@ log_file = logs/pytest-logs.txt
 
 --- КОНЕЦ ФАЙЛА: pytest.ini ---
 
---- НАЧАЛО ФАЙЛА: README.md ---
-
-Проект "Донор-бот МИФИ"
-Краткое описание решения
-
-Этот проект представляет собой Telegram-бота, разработанного для донорского движения НИЯУ МИФИ. Бот служит инструментом для упрощения регистрации на Дни Донора (ДД) и оперативного информирования доноров.
-Основной функционал:
-
-    Для доноров:
-        Регистрация и авторизация по номеру телефона.
-        Просмотр личной информации: ФИО, количество донаций, история донаций.
-        Запись на ближайший День Донора.
-        Доступ к информации о донорстве крови и костного мозга.
-        Возможность задать вопрос организаторам.
-    Для организаторов:
-        Управление базой доноров.
-        Создание и управление мероприятиями (Днями Донора).
-        Рассылка сообщений по различным категориям доноров.
-        Просмотр статистики по донорским акциям.
-        Ответы на вопросы пользователей.
-
-Структура проекта
-
-    bot/: Основная папка с кодом бота.
-        db/: Модули для работы с базой данных (модели, запросы).
-        handlers/: Обработчики сообщений, колбэков, разделенные по ролям (администратор, студент, волонтер).
-        keyboards/: Клавиатуры для взаимодействия с ботом.
-        middlewares/: Промежуточные обработчики.
-        states/: Состояния для FSM.
-        utils/: Вспомогательные утилиты (планировщик, QR-коды и т.д.).
-    tests/: Тесты для проверки работоспособности кода.
-    webapp/: Файлы для Telegram Web App.
-    main.py: Точка входа в приложение.
-    docker-compose.yml: Файл для запуска проекта с помощью Docker.
-    requirements.txt: Список зависимостей проекта.
-    Презентация.pptx: Презентация проекта для защиты.
-
-Как запускать проект
-
-Для запуска проекта используется Docker и Docker Compose.
-
-    Клонируйте репозиторий:
-
-    git clone https://github.com/sasha2004-art/donor-bot-telegram
-    cd <название_папки_проекта>
-
-    Создайте и заполните файл .env на основе .env.example. Внесите туда токен вашего бота и другие необходимые данные.
-
-    Запустите проект с помощью Docker Compose:
-
-    docker-compose up --build
-
-    После выполнения этой команды бот будет запущен и готов к работе.
-
-
-
---- КОНЕЦ ФАЙЛА: README.md ---
-
 --- НАЧАЛО ФАЙЛА: requirements-dev.txt ---
 
 bandit
@@ -1288,13 +1285,19 @@ pytz
 fastapi==0.111.1
 uvicorn[standard]==0.29.0
 python-jose[cryptography]==3.4.0
-python-multipart==0.0.18
-matplotlib==3.8.4
+python-multipart==0.0.18 
+matplotlib==3.8.4 
 pandas==2.2.2
 openpyxl==3.1.2
 httpx==0.27.0
 
 --- КОНЕЦ ФАЙЛА: requirements.txt ---
+
+--- НАЧАЛО ФАЙЛА: alembic/README ---
+
+Generic single-database configuration.
+
+--- КОНЕЦ ФАЙЛА: alembic/README ---
 
 --- НАЧАЛО ФАЙЛА: alembic/env.py ---
 
@@ -1382,8 +1385,44 @@ if context.is_offline_mode():
 else:
     asyncio.run(run_migrations_online())
 
-
 --- КОНЕЦ ФАЙЛА: alembic/env.py ---
+
+--- НАЧАЛО ФАЙЛА: alembic/script.py.mako ---
+
+"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision: str = ${repr(up_revision)}
+down_revision: Union[str, None] = ${repr(down_revision)}
+branch_labels: Union[str, Sequence[str], None] = ${repr(branch_labels)}
+depends_on: Union[str, Sequence[str], None] = ${repr(depends_on)}
+
+
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}
+
+--- КОНЕЦ ФАЙЛА: alembic/script.py.mako ---
+
+--- НАЧАЛО ФАЙЛА: bot/__init__.py ---
+
+
+
+--- КОНЕЦ ФАЙЛА: bot/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/config_reader.py ---
 
@@ -1411,11 +1450,25 @@ config = Settings()
 
 --- КОНЕЦ ФАЙЛА: bot/config_reader.py ---
 
---- НАЧАЛО ФАЙЛА: bot/__init__.py ---
+--- НАЧАЛО ФАЙЛА: bot/db/__init__.py ---
 
+from . import user_requests
+from . import event_requests
+from . import merch_requests
+from . import admin_requests
+from . import info_requests
+from . import question_requests
 
+__all__ = [
+    "user_requests",
+    "event_requests",
+    "merch_requests",
+    "admin_requests",
+    "info_requests",
+    "question_requests",
+]
 
---- КОНЕЦ ФАЙЛА: bot/__init__.py ---
+--- КОНЕЦ ФАЙЛА: bot/db/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/db/admin_requests.py ---
 
@@ -3213,26 +3266,6 @@ async def is_profile_complete(session: AsyncSession, user_id: int) -> bool:
 
 --- КОНЕЦ ФАЙЛА: bot/db/user_requests.py ---
 
---- НАЧАЛО ФАЙЛА: bot/db/__init__.py ---
-
-from . import user_requests
-from . import event_requests
-from . import merch_requests
-from . import admin_requests
-from . import info_requests
-from . import question_requests
-
-__all__ = [
-    "user_requests",
-    "event_requests",
-    "merch_requests",
-    "admin_requests",
-    "info_requests",
-    "question_requests",
-]
-
---- КОНЕЦ ФАЙЛА: bot/db/__init__.py ---
-
 --- НАЧАЛО ФАЙЛА: bot/filters/role.py ---
 
 from typing import Union
@@ -3264,6 +3297,12 @@ class RoleFilter(BaseFilter):
         return user_level >= self.required_level
 
 --- КОНЕЦ ФАЙЛА: bot/filters/role.py ---
+
+--- НАЧАЛО ФАЙЛА: bot/handlers/__init__.py ---
+
+
+
+--- КОНЕЦ ФАЙЛА: bot/handlers/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/handlers/common.py ---
 
@@ -4554,11 +4593,64 @@ async def process_qr_invalid_input(message: types.Message):
 
 --- КОНЕЦ ФАЙЛА: bot/handlers/volunteer.py ---
 
---- НАЧАЛО ФАЙЛА: bot/handlers/__init__.py ---
+--- НАЧАЛО ФАЙЛА: bot/handlers/admin/__init__.py ---
 
+from aiogram import Router, F, types
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from bot.filters.role import RoleFilter
+from bot.db import user_requests
+from bot.keyboards import inline
+from bot.utils.text_messages import Text
 
---- КОНЕЦ ФАЙЛА: bot/handlers/__init__.py ---
+from .user_management import router as user_management_router
+from .event_management import router as event_management_router
+from .merch_management import router as merch_management_router
+from .mailing import router as mailing_router
+from .system import router as system_router
+from .analytics import router as analytics_router
+from .info_management import router as info_management_router
+from .qa_management import router as qa_management_router
+
+admin_router = Router(name="admin")
+
+admin_router.include_routers(
+    user_management_router,
+    event_management_router,
+    merch_management_router,
+    mailing_router,
+    system_router,
+    analytics_router,
+    info_management_router,
+    qa_management_router,
+)
+
+@admin_router.callback_query(F.data == "admin_panel", RoleFilter('admin'))
+async def show_admin_panel(callback: types.CallbackQuery, session: AsyncSession):
+    """
+    Отображает главную панель администратора.
+    Клавиатура динамически подстраивается под роль (admin или main_admin).
+    """
+    viewer = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+    if not viewer:
+        await callback.answer(Text.ERROR_PROFILE_NOT_FOUND, show_alert=True)
+        return
+
+    await callback.message.edit_text(
+        text=Text.ADMIN_PANEL_HEADER,
+        reply_markup=inline.get_admin_panel_keyboard(viewer.role),
+        parse_mode="HTML"
+    )
+    await callback.answer()
+    
+
+@admin_router.callback_query(F.data == "admin_manage_events")
+async def manage_events_panel_test(callback: types.CallbackQuery):
+
+    await callback.message.edit_text(Text.ADMIN_EVENTS_HEADER, reply_markup=inline.get_events_management_keyboard(), parse_mode="HTML")
+    await callback.answer()
+
+--- КОНЕЦ ФАЙЛА: bot/handlers/admin/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/handlers/admin/analytics.py ---
 
@@ -6923,64 +7015,11 @@ async def add_user_gender(callback: types.CallbackQuery, state: FSMContext, sess
 
 --- КОНЕЦ ФАЙЛА: bot/handlers/admin/user_management.py ---
 
---- НАЧАЛО ФАЙЛА: bot/handlers/admin/__init__.py ---
+--- НАЧАЛО ФАЙЛА: bot/keyboards/__init__.py ---
 
-from aiogram import Router, F, types
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from bot.filters.role import RoleFilter
-from bot.db import user_requests
-from bot.keyboards import inline
-from bot.utils.text_messages import Text
 
-from .user_management import router as user_management_router
-from .event_management import router as event_management_router
-from .merch_management import router as merch_management_router
-from .mailing import router as mailing_router
-from .system import router as system_router
-from .analytics import router as analytics_router
-from .info_management import router as info_management_router
-from .qa_management import router as qa_management_router
-
-admin_router = Router(name="admin")
-
-admin_router.include_routers(
-    user_management_router,
-    event_management_router,
-    merch_management_router,
-    mailing_router,
-    system_router,
-    analytics_router,
-    info_management_router,
-    qa_management_router,
-)
-
-@admin_router.callback_query(F.data == "admin_panel", RoleFilter('admin'))
-async def show_admin_panel(callback: types.CallbackQuery, session: AsyncSession):
-    """
-    Отображает главную панель администратора.
-    Клавиатура динамически подстраивается под роль (admin или main_admin).
-    """
-    viewer = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-    if not viewer:
-        await callback.answer(Text.ERROR_PROFILE_NOT_FOUND, show_alert=True)
-        return
-
-    await callback.message.edit_text(
-        text=Text.ADMIN_PANEL_HEADER,
-        reply_markup=inline.get_admin_panel_keyboard(viewer.role),
-        parse_mode="HTML"
-    )
-    await callback.answer()
-    
-
-@admin_router.callback_query(F.data == "admin_manage_events")
-async def manage_events_panel_test(callback: types.CallbackQuery):
-
-    await callback.message.edit_text(Text.ADMIN_EVENTS_HEADER, reply_markup=inline.get_events_management_keyboard(), parse_mode="HTML")
-    await callback.answer()
-
---- КОНЕЦ ФАЙЛА: bot/handlers/admin/__init__.py ---
+--- КОНЕЦ ФАЙЛА: bot/keyboards/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/keyboards/inline.py ---
 
@@ -7672,14 +7711,13 @@ def get_home_keyboard():
         resize_keyboard=True
     )
 
-
 --- КОНЕЦ ФАЙЛА: bot/keyboards/reply.py ---
 
---- НАЧАЛО ФАЙЛА: bot/keyboards/__init__.py ---
+--- НАЧАЛО ФАЙЛА: bot/middlewares/__init__.py ---
 
 
 
---- КОНЕЦ ФАЙЛА: bot/keyboards/__init__.py ---
+--- КОНЕЦ ФАЙЛА: bot/middlewares/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/middlewares/block.py ---
 
@@ -7744,11 +7782,11 @@ class DbSessionMiddleware(BaseMiddleware):
 
 --- КОНЕЦ ФАЙЛА: bot/middlewares/db.py ---
 
---- НАЧАЛО ФАЙЛА: bot/middlewares/__init__.py ---
+--- НАЧАЛО ФАЙЛА: bot/states/__init__.py ---
 
 
 
---- КОНЕЦ ФАЙЛА: bot/middlewares/__init__.py ---
+--- КОНЕЦ ФАЙЛА: bot/states/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/states/states.py ---
 
@@ -7876,11 +7914,11 @@ class UserEditing(StatesGroup):
 
 --- КОНЕЦ ФАЙЛА: bot/states/states.py ---
 
---- НАЧАЛО ФАЙЛА: bot/states/__init__.py ---
+--- НАЧАЛО ФАЙЛА: bot/utils/__init__.py ---
 
 
 
---- КОНЕЦ ФАЙЛА: bot/states/__init__.py ---
+--- КОНЕЦ ФАЙЛА: bot/utils/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/utils/analytics_service.py ---
 
@@ -8112,7 +8150,6 @@ async def import_data_from_file(session: AsyncSession, file_bytes: bytes) -> tup
     await session.commit()
     return created_count, updated_count
 
-
 --- КОНЕЦ ФАЙЛА: bot/utils/data_import.py ---
 
 --- НАЧАЛО ФАЙЛА: bot/utils/graduation.py ---
@@ -8164,7 +8201,6 @@ async def check_graduation_status(bot, session):
                     "Пожалуйста, обновите свои данные, чтобы продолжать "
                     "пользоваться ботом."
                 )
-
 
 --- КОНЕЦ ФАЙЛА: bot/utils/graduation.py ---
 
@@ -8237,7 +8273,6 @@ async def read_qr(photo_bytes: bytes) -> dict | None:
     except Exception as e:
         # logger.error(f"An exception occurred in read_qr: {e}", exc_info=True)
         return None
-
 
 --- КОНЕЦ ФАЙЛА: bot/utils/qr_service.py ---
 
@@ -9044,19 +9079,6 @@ class Text:
 
 --- КОНЕЦ ФАЙЛА: bot/utils/text_messages.py ---
 
---- НАЧАЛО ФАЙЛА: bot/utils/__init__.py ---
-
-
-
---- КОНЕЦ ФАЙЛА: bot/utils/__init__.py ---
-
---- НАЧАЛО ФАЙЛА: donor_bot_telegram.egg-info/dependency_links.txt ---
-
-
-
-
---- КОНЕЦ ФАЙЛА: donor_bot_telegram.egg-info/dependency_links.txt ---
-
 --- НАЧАЛО ФАЙЛА: donor_bot_telegram.egg-info/SOURCES.txt ---
 
 README.md
@@ -9128,12 +9150,23 @@ tests/test_volunteer_fsm.py
 
 --- КОНЕЦ ФАЙЛА: donor_bot_telegram.egg-info/SOURCES.txt ---
 
+--- НАЧАЛО ФАЙЛА: donor_bot_telegram.egg-info/dependency_links.txt ---
+
+
+
+--- КОНЕЦ ФАЙЛА: donor_bot_telegram.egg-info/dependency_links.txt ---
+
 --- НАЧАЛО ФАЙЛА: donor_bot_telegram.egg-info/top_level.txt ---
 
 bot
 
-
 --- КОНЕЦ ФАЙЛА: donor_bot_telegram.egg-info/top_level.txt ---
+
+--- НАЧАЛО ФАЙЛА: tests/__init__.py ---
+
+
+
+--- КОНЕЦ ФАЙЛА: tests/__init__.py ---
 
 --- НАЧАЛО ФАЙЛА: tests/conftest.py ---
 
@@ -9584,8 +9617,6 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
     assert len(donations_user2) == 1
     assert user2.points == 100
     assert user2.is_dkm_donor is True # Отмечали ДКМ
-
-    
 
 --- КОНЕЦ ФАЙЛА: tests/test_admin_fsm.py ---
 
@@ -10638,7 +10669,6 @@ from bot.utils.graduation import calculate_graduation_year
 )
 def test_calculate_graduation_year(group, expected_year):
     assert calculate_graduation_year(group) == expected_year
-
 
 --- КОНЕЦ ФАЙЛА: tests/test_graduation.py ---
 
@@ -12383,9 +12413,186 @@ async def test_volunteer_fsm_wrong_day(mocker, session, volunteer_user, donor_us
 
 --- КОНЕЦ ФАЙЛА: tests/test_volunteer_fsm.py ---
 
---- НАЧАЛО ФАЙЛА: tests/__init__.py ---
+--- НАЧАЛО ФАЙЛА: webapp/index.html ---
 
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Опрос для донора</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --tg-theme-bg-color: #ffffff;
+            --tg-theme-text-color: #000000;
+            --tg-theme-button-color: #007bff;
+            --tg-theme-button-text-color: #ffffff;
+            --tg-theme-hint-color: #999999;
+            --tg-theme-secondary-bg-color: #f4f4f4;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--tg-theme-bg-color);
+            color: var(--tg-theme-text-color);
+            margin: 0;
+            padding: 15px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 20px; text-align: center; }
+        .question-block {
+            background-color: var(--tg-theme-secondary-bg-color);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .question-block h2 {
+            font-size: 18px; margin-top: 0; margin-bottom: 15px; border-bottom: 1px solid var(--tg-theme-hint-color); padding-bottom: 10px;
+        }
+        .question { margin-bottom: 15px; }
+        .question p { margin: 0 0 10px 0; font-weight: 500; font-size: 16px; line-height: 1.4; }
+        .options { display: flex; gap: 10px; }
+        .options label {
+            display: flex; align-items: center; gap: 5px; padding: 10px; border-radius: 8px;
+            border: 1px solid var(--tg-theme-hint-color); flex-grow: 1; justify-content: center; cursor: pointer; transition: all 0.2s ease;
+        }
+        input[type="radio"] { display: none; }
+        input[type="radio"]:checked + label {
+            background-color: var(--tg-theme-button-color); color: var(--tg-theme-button-text-color); border-color: var(--tg-theme-button-color);
+        }
+        .content-spacer { height: 80px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Опрос перед донацией</h1>
+        <p style="text-align: center; color: var(--tg-theme-hint-color); margin-top: -15px; margin-bottom: 25px;">Пожалуйста, отвечайте честно. Это важно для вашей безопасности и безопасности реципиентов.</p>
+        
+        <form id="survey-form">
+            <div class="question-block">
+                <h2>Основные требования</h2>
+                <div class="question"> <p>1. Вам есть 18 лет?</p> <div class="options"> <input type="radio" id="age-no" name="age" value="no"><label for="age-no">Нет</label> <input type="radio" id="age-yes" name="age" value="yes" required><label for="age-yes">Да</label> </div> </div>
+                <div class="question"> <p>2. Ваш вес 50 кг или более?</p> <div class="options"> <input type="radio" id="weight-no" name="weight" value="no"><label for="weight-no">Нет</label> <input type="radio" id="weight-yes" name="weight" value="yes" required><label for="weight-yes">Да</label> </div> </div>
+            </div>
 
+            <div class="question-block">
+                <h2>Ваше здоровье</h2>
+                <div class="question"> <p>3. Болели ли Вы ОРВИ, гриппом или ангиной в течение последнего месяца?</p> <div class="options"> <input type="radio" id="health_issues-yes" name="health_issues_last_month" value="yes"><label for="health_issues-yes">Да</label> <input type="radio" id="health_issues-no" name="health_issues_last_month" value="no" required><label for="health_issues-no">Нет</label> </div> </div>
+                <div class="question"> <p>4. Есть ли у вас сейчас симптомы простуды (насморк, кашель, температура, боль в горле)?</p> <div class="options"> <input type="radio" id="symptoms-yes" name="symptoms" value="yes"><label for="symptoms-yes">Да</label> <input type="radio" id="symptoms-no" name="symptoms" value="no" required><label for="symptoms-no">Нет</label> </div> </div>
+                <div class="question"> <p>5. Удаляли ли Вам зуб в течение последних 10 дней?</p> <div class="options"> <input type="radio" id="tooth-yes" name="tooth_removal_last_10_days" value="yes"><label for="tooth-yes">Да</label> <input type="radio" id="tooth-no" name="tooth_removal_last_10_days" value="no" required><label for="tooth-no">Нет</label> </div> </div>
+            </div>
 
---- КОНЕЦ ФАЙЛА: tests/__init__.py ---
+            <div class="question-block">
+                <h2>Процедуры и лекарства</h2>
+                <div class="question"> <p>7. Делали ли Вы татуировку, пирсинг или эндоскопию в последние 4-12 месяцев?</p> <div class="options"> <input type="radio" id="tattoo-yes" name="tattoo_or_piercing" value="yes"><label for="tattoo-yes">Да</label> <input type="radio" id="tattoo-no" name="tattoo_or_piercing" value="no" required><label for="tattoo-no">Нет</label> </div> </div>
+                <div class="question"> <p>8. Принимали ли Вы антибиотики в последние 2 недели?</p> <div class="options"> <input type="radio" id="antibiotics-yes" name="antibiotics_last_2_weeks" value="yes"><label for="antibiotics-yes">Да</label> <input type="radio" id="antibiotics-no" name="antibiotics_last_2_weeks" value="no" required><label for="antibiotics-no">Нет</label> </div> </div>
+                <div class="question"> <p>9. Принимали ли Вы анальгетики (обезболивающие) или аспирин в последние 3 дня?</p> <div class="options"> <input type="radio" id="analgesics-yes" name="analgesics_last_3_days" value="yes"><label for="analgesics-yes">Да</label> <input type="radio" id="analgesics-no" name="analgesics_last_3_days" value="no" required><label for="analgesics-no">Нет</label> </div> </div>
+                 <div class="question"> <p>10. Принимали ли Вы какие-либо другие лекарства за последние 72 часа?</p> <div class="options"> <input type="radio" id="meds-yes" name="medication_last_72h" value="yes"><label for="meds-yes">Да</label> <input type="radio" id="meds-no" name="medication_last_72h" value="no" required><label for="meds-no">Нет</label> </div> </div>
+            </div>
+
+            <div class="question-block">
+                <h2>Подготовка к донации</h2>
+                <div class="question"> <p>11. Соблюдали ли Вы диету в последние 2-3 дня (исключали жирное, молочное, яйца, орехи)?</p> <div class="options"> <input type="radio" id="diet-no" name="diet_followed" value="no"><label for="diet-no">Нет</label> <input type="radio" id="diet-yes" name="diet_followed" value="yes" required><label for="diet-yes">Да</label> </div> </div>
+                <div class="question"> <p>12. Употребляли ли Вы алкоголь в течение последних 48 часов?</p> <div class="options"> <input type="radio" id="alcohol-yes" name="alcohol_last_48h" value="yes"><label for="alcohol-yes">Да</label> <input type="radio" id="alcohol-no" name="alcohol_last_48h" value="no" required><label for="alcohol-no">Нет</label> </div> </div>
+                <div class="question"> <p>13. Вы спали не менее 8 часов прошлой ночью?</p> <div class="options"> <input type="radio" id="sleep-no" name="sleep_last_night" value="no"><label for="sleep-no">Нет</label> <input type="radio" id="sleep-yes" name="sleep_last_night" value="yes" required><label for="sleep-yes">Да</label> </div> </div>
+                <div class="question"> <p>14. Курили ли Вы в течение последнего часа?</p> <div class="options"> <input type="radio" id="smoking-yes" name="smoking_last_hour" value="yes"><label for="smoking-yes">Да</label> <input type="radio" id="smoking-no" name="smoking_last_hour" value="no" required><label for="smoking-no">Нет</label> </div> </div>
+            </div>
+
+            <div class="question-block">
+                <h2>Абсолютные противопоказания</h2>
+                <p style="font-size: 14px; color: var(--tg-theme-hint-color); margin-bottom: 15px;">Положительный ответ на любой из следующих вопросов означает, что вы не можете быть донором крови.</p>
+                <div class="question"> <p>15. Диагностированы ли у Вас ВИЧ/СПИД, сифилис, вирусные гепатиты B или C, туберкулез?</p> <div class="options"> <input type="radio" id="hiv-yes" name="has_hiv_or_hepatitis" value="yes"><label for="hiv-yes">Да</label> <input type="radio" id="hiv-no" name="has_hiv_or_hepatitis" value="no" required><label for="hiv-no">Нет</label> </div> </div>
+                <div class="question"> <p>16. Диагностированы ли у Вас онкологические заболевания или болезни крови?</p> <div class="options"> <input type="radio" id="cancer-yes" name="has_cancer_or_blood_disease" value="yes"><label for="cancer-yes">Да</label> <input type="radio" id="cancer-no" name="has_cancer_or_blood_disease" value="no" required><label for="cancer-no">Нет</label> </div> </div>
+                <div class="question"> <p>17. Есть ли у Вас серьезные хронические заболевания (гипертония II-III ст., ишемическая болезнь, бронхиальная астма, органические поражения ЦНС)?</p> <div class="options"> <input type="radio" id="chronic-yes" name="has_chronic_disease" value="yes"><label for="chronic-yes">Да</label> <input type="radio" id="chronic-no" name="has_chronic_disease" value="no" required><label for="chronic-no">Нет</label> </div> </div>
+            </div>
+
+            <!-- Скрытые поля для вопросов, которые не задаются напрямую -->
+            <input type="hidden" name="pressure" value="unknown">
+            <input type="hidden" name="hemoglobin_level" value="unknown">
+
+            <div class="content-spacer"></div>
+        </form>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const tg = window.Telegram.WebApp;
+            const form = document.getElementById('survey-form');
+            
+            const applyTheme = () => {
+                document.body.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#ffffff');
+                document.body.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000000');
+                document.body.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#007bff');
+                document.body.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#ffffff');
+                document.body.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999999');
+                document.body.style.setProperty('--tg-theme-secondary-bg-color', tg.themeParams.secondary_bg_color || '#f4f4f4');
+            };
+
+            const sendData = async () => {
+                const authString = tg.initData;
+                
+                if (!authString) {
+                    tg.showAlert('Критическая ошибка: данные авторизации отсутствуют. Пожалуйста, перезапустите бота и опрос.');
+                    return;
+                }
+                
+                if (!form.checkValidity()) {
+                    tg.showAlert('Пожалуйста, ответьте на все вопросы.');
+                    const firstInvalid = form.querySelector(':invalid');
+                    if (firstInvalid) {
+                        firstInvalid.closest('.question-block')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                    return;
+                }
+
+                tg.MainButton.showProgress();
+                tg.MainButton.disable();
+
+                const formData = new FormData(form);
+                const surveyData = {};
+                for (const [key, value] of formData.entries()) {
+                    surveyData[key] = value;
+                }
+
+                try {
+                    const response = await fetch('/api/submit_survey', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            survey_data: surveyData,
+                            auth_string: authString
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        tg.close();
+                    } else {
+                        const errorData = await response.json();
+                        tg.showAlert(`Произошла ошибка на сервере: ${errorData.detail || 'Попробуйте снова.'}`, () => {
+                            tg.close();
+                        });
+                    }
+                } catch (error) {
+                    tg.showAlert('Ошибка сети. Пожалуйста, проверьте ваше интернет-соединение и попробуйте снова.');
+                    tg.MainButton.hideProgress();
+                    tg.MainButton.enable();
+                }
+            };
+
+            tg.ready();
+            tg.expand();
+            applyTheme();
+
+            
+            tg.MainButton.setText('Отправить ответы');
+            tg.MainButton.onClick(sendData);
+            tg.MainButton.show();
+        });
+    </script>
+</body>
+</html>
+
+--- КОНЕЦ ФАЙЛА: webapp/index.html ---
 

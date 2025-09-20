@@ -8,3 +8,4 @@ venv/
 .vscode/ 
 *.pyc
 db_volume/
+all_code.txt
