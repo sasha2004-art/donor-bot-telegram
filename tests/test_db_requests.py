@@ -67,7 +67,7 @@ async def test_create_event_with_location(session: AsyncSession):
         "latitude": 55.649917,
         "longitude": 37.662128,
         "donation_type": "whole_blood",
-        "points_per_donation": 100,
+        # "points_per_donation": 100,
         "participant_limit": 50,
     }
 
@@ -185,7 +185,7 @@ async def test_check_registration_eligibility(session: AsyncSession):
         donation_type="whole_blood",
         participant_limit=5,
         registration_is_open=True,
-        points_per_donation=10,
+        # points_per_donation=10,
     )
     session.add_all([user, event])
     await session.commit()
@@ -310,6 +310,7 @@ async def test_block_and_unblock_user(session: AsyncSession):
     assert block_record.is_active is False
 
 
+'''
 async def test_confirm_donation_transaction(session: AsyncSession):
     """Тестирует полную транзакцию подтверждения донации."""
     # 1. Подготовка
@@ -338,20 +339,19 @@ async def test_confirm_donation_transaction(session: AsyncSession):
     await session.commit()
 
     # 2. Выполнение
-    points, waiver_end_date = await event_requests.confirm_donation_transaction(
+    waiver_end_date = await event_requests.confirm_donation_transaction(
         session, user, registration
     )
 
     # 3. Проверка
     # Проверяем начисление баллов
     updated_user = await session.get(User, user.id)
-    assert points == 50
-    assert updated_user.points == 50
+    assert updated_user.points == 0
 
     # Проверяем запись о донации
     donation = (await session.execute(select(Donation))).scalar_one()
     assert donation.user_id == user.id
-    assert donation.points_awarded == 50
+    assert donation.points_awarded == 0
 
     # Проверяем создание медотвода
     waiver = (await session.execute(select(MedicalWaiver))).scalar_one()
@@ -363,38 +363,41 @@ async def test_confirm_donation_transaction(session: AsyncSession):
     # Проверяем статус регистрации
     updated_reg = await session.get(EventRegistration, registration.id)
     assert updated_reg.status == "attended"
+'''
 
 
-# async def test_create_merch_order_success_and_fail(session: AsyncSession):
-#     """Тестирует успешное создание заказа и отказ при нехватке баллов."""
-#     # 1. Подготовка
-#     user_rich = User(phone_number="+1", telegram_id=1, full_name="Rich", points=100, university="TestUni")
-#     user_poor = User(phone_number="+2", telegram_id=2, full_name="Poor", points=10, university="TestUni")
-#     item = MerchItem(name="Test Mug", description="A mug", price=50, photo_file_id="123")
-#     session.add_all([user_rich, user_poor, item])
-#     await session.commit()
+'''
+async def test_create_merch_order_success_and_fail(session: AsyncSession):
+    """Тестирует успешное создание заказа и отказ при нехватке баллов."""
+    # 1. Подготовка
+    user_rich = User(phone_number="+1", telegram_id=1, full_name="Rich", points=100, university="TestUni")
+    user_poor = User(phone_number="+2", telegram_id=2, full_name="Poor", points=10, university="TestUni")
+    item = MerchItem(name="Test Mug", description="A mug", price=50, photo_file_id="123")
+    session.add_all([user_rich, user_poor, item])
+    await session.commit()
 
-#     # 2. Успешная покупка
-#     success, msg = await merch_requests.create_merch_order(session, user_rich, item)
-#     await session.commit()
+    # 2. Успешная покупка
+    success, msg = await merch_requests.create_merch_order(session, user_rich, item)
+    await session.commit()
 
-#     # 3. Проверка успешной покупки
-#     order = (await session.execute(select(MerchOrder).where(MerchOrder.user_id == user_rich.id))).scalar_one()
-#     assert success is True
-#     assert "Покупка совершена" in msg
-#     assert user_rich.points == 50
-#     assert order is not None
+    # 3. Проверка успешной покупки
+    order = (await session.execute(select(MerchOrder).where(MerchOrder.user_id == user_rich.id))).scalar_one()
+    assert success is True
+    assert "Покупка совершена" in msg
+    assert user_rich.points == 50
+    assert order is not None
 
-#     # 4. Неуспешная покупка
-#     success_fail, msg_fail = await merch_requests.create_merch_order(session, user_poor, item)
-#     await session.commit()
+    # 4. Неуспешная покупка
+    success_fail, msg_fail = await merch_requests.create_merch_order(session, user_poor, item)
+    await session.commit()
 
-#     # 5. Проверка неуспешной покупки
-#     order_fail = (await session.execute(select(MerchOrder).where(MerchOrder.user_id == user_poor.id))).scalar_one_or_none()
-#     assert success_fail is False
-#     assert "Недостаточно баллов" in msg_fail
-#     assert user_poor.points == 10 # Баллы не должны были списаться
-#     assert order_fail is None
+    # 5. Проверка неуспешной покупки
+    order_fail = (await session.execute(select(MerchOrder).where(MerchOrder.user_id == user_poor.id))).scalar_one_or_none()
+    assert success_fail is False
+    assert "Недостаточно баллов" in msg_fail
+    assert user_poor.points == 10 # Баллы не должны были списаться
+    assert order_fail is None
+'''
 
 
 async def test_user_can_delete_own_waiver_but_not_system(session: AsyncSession):
@@ -534,7 +537,7 @@ async def test_get_users_for_event_notification(
         event_datetime=datetime.datetime.now() + datetime.timedelta(days=15),
         location="Test",
         donation_type="whole_blood",
-        points_per_donation=10,
+        # points_per_donation=10,
         participant_limit=100,
     )
 
@@ -636,7 +639,7 @@ async def test_create_event_with_datetime(session: AsyncSession):
         "event_datetime": event_dt,
         "location": "НИЯУ МИФИ",
         "donation_type": "platelets",
-        "points_per_donation": 200,
+        # "points_per_donation": 200,
         "participant_limit": 20,
     }
 

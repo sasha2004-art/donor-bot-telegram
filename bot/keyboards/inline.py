@@ -47,7 +47,7 @@ def get_student_main_menu(viewer_role: str = "student"):
         )
     )
     builder.row(InlineKeyboardButton(text="👤 Мой профиль", callback_data="my_profile"))
-    # builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))
+    '''builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))'''
     builder.row(
         InlineKeyboardButton(text="ℹ️ Полезная информация", callback_data="info")
     )
@@ -201,21 +201,23 @@ def get_back_to_info_menu_keyboard():
     return builder.as_markup()
 
 
-# def get_merch_store_keyboard(item: MerchItem, page: int, total_pages: int):
-#     builder = InlineKeyboardBuilder()
-#     builder.row(InlineKeyboardButton(text=f'Купить за {item.price}Б', callback_data=f"buy_merch_{item.id}"))
-#     nav_buttons = []
-#     prev_page = total_pages if page == 1 else page - 1
-#     nav_buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"merch_page_{prev_page}"))
-#     nav_buttons.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="ignore"))
-#     next_page = 1 if page == total_pages else page + 1
-#     nav_buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"merch_page_{next_page}"))
-#     builder.row(*nav_buttons)
-#     builder.row(InlineKeyboardButton(text="🛍️ Мои заказы", callback_data="my_orders"))
-#     builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
-#     return builder.as_markup()
+'''
+def get_merch_store_keyboard(item: MerchItem, page: int, total_pages: int):
+    builder = InlineKeyboardBuilder()
+    builder.row(InlineKeyboardButton(text=f'Купить за {item.price}Б', callback_data=f"buy_merch_{item.id}"))
+    nav_buttons = []
+    prev_page = total_pages if page == 1 else page - 1
+    nav_buttons.append(InlineKeyboardButton(text="◀️", callback_data=f"merch_page_{prev_page}"))
+    nav_buttons.append(InlineKeyboardButton(text=f"{page}/{total_pages}", callback_data="ignore"))
+    next_page = 1 if page == total_pages else page + 1
+    nav_buttons.append(InlineKeyboardButton(text="▶️", callback_data=f"merch_page_{next_page}"))
+    builder.row(*nav_buttons)
+    builder.row(InlineKeyboardButton(text="🛍️ Мои заказы", callback_data="my_orders"))
+    builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
+    return builder.as_markup()
+'''
 
-
+'''
 def get_purchase_confirmation_keyboard(item_id: int):
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -233,7 +235,7 @@ def get_back_to_merch_keyboard():
         InlineKeyboardButton(text="↩️ Назад в магазин", callback_data="merch_store")
     )
     return builder.as_markup()
-
+'''
 
 def get_admin_panel_keyboard(viewer_role: str):
     builder = InlineKeyboardBuilder()
@@ -252,8 +254,10 @@ def get_admin_panel_keyboard(viewer_role: str):
             text="👥 Упр. пользователями", callback_data="admin_manage_users"
         )
     )
-    # builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
-    # builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
+    '''
+    builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
+    builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
+    '''
     builder.row(InlineKeyboardButton(text="📣 Рассылки", callback_data="admin_mailing"))
     builder.row(
         InlineKeyboardButton(text="📊 Аналитика", callback_data="admin_analytics")
@@ -462,11 +466,11 @@ def get_user_management_keyboard(
         )
     )
 
-    builder.row(
+    '''builder.row(
         InlineKeyboardButton(
             text="+/- Баллы", callback_data=f"admin_points_{target_user_id}"
         )
-    )
+    )'''
 
     if target_user_role == "student":
         builder.row(
@@ -698,21 +702,22 @@ def get_export_keyboard():
     return builder.as_markup()
 
 
-# def get_merch_management_keyboard():
-#     builder = InlineKeyboardBuilder()
-#     builder.row(
-#         InlineKeyboardButton(
-#             text="➕ Добавить товар", callback_data="admin_create_merch"
-#         )
-#     )
-#     builder.row(
-#         InlineKeyboardButton(
-#             text="📜 Просмотр/Редактирование", callback_data="admin_view_merch"
-#         )
-#     )
-#     builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="admin_panel"))
-#     return builder.as_markup()
-
+'''
+def get_merch_management_keyboard():
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="➕ Добавить товар", callback_data="admin_create_merch"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="📜 Просмотр/Редактирование", callback_data="admin_view_merch"
+        )
+    )
+    builder.row(InlineKeyboardButton(text="↩️ Назад", callback_data="admin_panel"))
+    return builder.as_markup()
+'''
 
 def get_event_cancellation_confirmation_keyboard(event_id: int):
     builder = InlineKeyboardBuilder()
@@ -736,35 +741,36 @@ def get_back_to_events_menu_keyboard():
     )
     return builder.as_markup()
 
+'''
+def get_single_merch_management_keyboard(item_id: int, is_available: bool):
+    builder = InlineKeyboardBuilder()
+    builder.row(
+        InlineKeyboardButton(
+            text="✏️ Редактировать", callback_data=f"admin_edit_merch_{item_id}"
+        )
+    )
+    availability_text = (
+        "✅ Сделать доступным" if not is_available else "❌ Сделать недоступным"
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text=availability_text, callback_data=f"admin_toggle_merch_{item_id}"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="🗑️ Удалить товар", callback_data=f"admin_delete_merch_{item_id}"
+        )
+    )
+    builder.row(
+        InlineKeyboardButton(
+            text="↩️ К списку товаров", callback_data="admin_view_merch"
+        )
+    )
+    return builder.as_markup()
+'''
 
-# def get_single_merch_management_keyboard(item_id: int, is_available: bool):
-#     builder = InlineKeyboardBuilder()
-#     builder.row(
-#         InlineKeyboardButton(
-#             text="✏️ Редактировать", callback_data=f"admin_edit_merch_{item_id}"
-#         )
-#     )
-#     availability_text = (
-#         "✅ Сделать доступным" if not is_available else "❌ Сделать недоступным"
-#     )
-#     builder.row(
-#         InlineKeyboardButton(
-#             text=availability_text, callback_data=f"admin_toggle_merch_{item_id}"
-#         )
-#     )
-#     builder.row(
-#         InlineKeyboardButton(
-#             text="🗑️ Удалить товар", callback_data=f"admin_delete_merch_{item_id}"
-#         )
-#     )
-#     builder.row(
-#         InlineKeyboardButton(
-#             text="↩️ К списку товаров", callback_data="admin_view_merch"
-#         )
-#     )
-#     return builder.as_markup()
-
-
+'''
 def get_merch_deletion_confirmation_keyboard(item_id: int):
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -776,8 +782,9 @@ def get_merch_deletion_confirmation_keyboard(item_id: int):
         ),
     )
     return builder.as_markup()
+'''
 
-
+'''
 def get_back_to_merch_menu_keyboard():
     builder = InlineKeyboardBuilder()
     builder.row(
@@ -786,6 +793,7 @@ def get_back_to_merch_menu_keyboard():
         )
     )
     return builder.as_markup()
+'''
 
 
 def get_already_registered_keyboard(event_id: int):

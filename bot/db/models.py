@@ -37,7 +37,7 @@ class User(Base):
     faculty: Mapped[str] = mapped_column(String(100), nullable=True)
     study_group: Mapped[str] = mapped_column(String(50), nullable=True)
     gender: Mapped[str] = mapped_column(String(10), nullable=True)
-    points: Mapped[int] = mapped_column(Integer, default=0)
+    # points: Mapped[int] = mapped_column(Integer, default=0)
     role: Mapped[str] = mapped_column(String(50), default="student", index=True)
     is_blocked: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime.datetime] = mapped_column(
@@ -81,7 +81,7 @@ class Event(Base):
     latitude: Mapped[float] = mapped_column(Float, nullable=True)
     longitude: Mapped[float] = mapped_column(Float, nullable=True)
     donation_type: Mapped[str] = mapped_column(String(50))
-    points_per_donation: Mapped[int] = mapped_column(Integer)
+    # points_per_donation: Mapped[int] = mapped_column(Integer)
     participant_limit: Mapped[int] = mapped_column(Integer)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
     registration_is_open: Mapped[bool] = mapped_column(
@@ -121,7 +121,7 @@ class Donation(Base):
     )
     donation_date: Mapped[datetime.date] = mapped_column(Date)
     donation_type: Mapped[str] = mapped_column(String(50))
-    points_awarded: Mapped[int] = mapped_column(Integer)
+    # points_awarded: Mapped[int] = mapped_column(Integer)
     feedback_requested: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default="f", nullable=False
     )
@@ -164,30 +164,32 @@ class MedicalWaiver(Base):
     user: Mapped["User"] = relationship(back_populates="waivers")
 
 
-# class MerchItem(Base):
-#     __tablename__ = 'merch_items'
-#     id: Mapped[int] = mapped_column(primary_key=True)
-#     name: Mapped[str] = mapped_column(String(255))
-#     description: Mapped[str] = mapped_column(Text)
-#     price: Mapped[int] = mapped_column(Integer)
-#     photo_file_id: Mapped[str] = mapped_column(String(255))
-#     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
-#
-#     orders: Mapped[List["MerchOrder"]] = relationship(back_populates="item")
-#
-# class MerchOrder(Base):
-#     __tablename__ = 'merch_orders'
-#     id: Mapped[int] = mapped_column(primary_key=True)
-#     user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
-#     item_id: Mapped[int] = mapped_column(ForeignKey('merch_items.id'))
-#     order_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-#     status: Mapped[str] = mapped_column(String(50), default='pending_pickup')
-#     completed_by_admin_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
-#     completion_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=True)
-#
-#     user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="orders")
-#     item: Mapped["MerchItem"] = relationship(back_populates="orders")
-#     completed_by_admin: Mapped["User"] = relationship(foreign_keys=[completed_by_admin_id])
+'''
+class MerchItem(Base):
+    __tablename__ = 'merch_items'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str] = mapped_column(Text)
+    price: Mapped[int] = mapped_column(Integer)
+    photo_file_id: Mapped[str] = mapped_column(String(255))
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    orders: Mapped[List["MerchOrder"]] = relationship(back_populates="item")
+
+class MerchOrder(Base):
+    __tablename__ = 'merch_orders'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'), index=True)
+    item_id: Mapped[int] = mapped_column(ForeignKey('merch_items.id'))
+    order_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    status: Mapped[str] = mapped_column(String(50), default='pending_pickup')
+    completed_by_admin_id: Mapped[int] = mapped_column(ForeignKey('users.id'), nullable=True)
+    completion_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    user: Mapped["User"] = relationship(foreign_keys=[user_id], back_populates="orders")
+    item: Mapped["MerchItem"] = relationship(back_populates="orders")
+    completed_by_admin: Mapped["User"] = relationship(foreign_keys=[completed_by_admin_id])
+'''
 
 
 class UserBlock(Base):

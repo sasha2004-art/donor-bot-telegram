@@ -162,6 +162,7 @@ async def show_single_user_card(callback: types.CallbackQuery, session: AsyncSes
     await callback.answer()
 
 
+'''
 # --- +/- Баллы (FSM) ---
 @router.callback_query(F.data.startswith("admin_points_"), RoleFilter("admin"))
 async def change_points_start(callback: types.CallbackQuery, state: FSMContext):
@@ -217,6 +218,7 @@ async def change_points_reason(
         )
     except Exception as e:
         logger.error(f"Failed to notify user {user_id} about points change: {e}")
+'''
 
 
 # --- Ручное управление ролями ---

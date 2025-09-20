@@ -112,6 +112,7 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
 
     dkm_status = "Да" if user_obj.is_dkm_donor else "Нет"
 
+    user_obj.points = 0
     text = Text.PROFILE_DATA_TEMPLATE.format(
         full_name=Text.escape_html(user_obj.full_name),
         university=Text.escape_html(user_obj.university),
@@ -145,6 +146,7 @@ async def show_donation_history(callback: types.CallbackQuery, session: AsyncSes
         donation_type_ru = Text.DONATION_TYPE_RU.get(
             donation.donation_type, donation.donation_type
         )
+        donation.points_awarded = 0
         history_text += Text.DONATION_HISTORY_ITEM.format(
             date=donation.donation_date.strftime("%d.%m.%Y"),
             type=Text.escape_html(donation_type_ru),
@@ -351,106 +353,108 @@ async def cancel_my_registration(callback: types.CallbackQuery, session: AsyncSe
 
 # --- 🎁 МАГАЗИН МЕРЧА ---
 
-# @router.callback_query(F.data == "merch_store")
-# @router.callback_query(F.data.startswith("merch_page_"))
-# async def show_merch_store(callback: types.CallbackQuery, session: AsyncSession):
-#     page = 1
-#     if callback.data.startswith("merch_page_"):
-#         page = int(callback.data.split('_')[-1])
-#     item, total_items = await merch_requests.get_merch_page(session, page=page)
-#     if not item:
-#         await callback.answer(Text.MERCH_NO_ITEMS, show_alert=True)
-#         return
-#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-#     caption = Text.MERCH_ITEM_CAPTION.format(
-#         item_name=item.name,
-#         item_description=item.description,
-#         item_price=item.price,
-#         user_points=user.points
-#     )
-#     keyboard = inline.get_merch_store_keyboard(item, page, total_items)
-#     try:
-#         await callback.message.edit_media(
-#             media=types.InputMediaPhoto(media=item.photo_file_id, caption=caption, parse_mode="HTML"),
-#             reply_markup=keyboard
-#         )
-#     except TelegramBadRequest as e:
-#         if "message is not modified" in str(e):
-#              await callback.answer()
-#              return
-#         await callback.message.delete()
-#         await callback.message.answer_photo(
-#             photo=item.photo_file_id,
-#             caption=caption,
-#             reply_markup=keyboard,
-#             parse_mode="HTML"
-#         )
-#     await callback.answer()
+'''
+@router.callback_query(F.data == "merch_store")
+@router.callback_query(F.data.startswith("merch_page_"))
+async def show_merch_store(callback: types.CallbackQuery, session: AsyncSession):
+    page = 1
+    if callback.data.startswith("merch_page_"):
+        page = int(callback.data.split('_')[-1])
+    item, total_items = await merch_requests.get_merch_page(session, page=page)
+    if not item:
+        await callback.answer(Text.MERCH_NO_ITEMS, show_alert=True)
+        return
+    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+    caption = Text.MERCH_ITEM_CAPTION.format(
+        item_name=item.name,
+        item_description=item.description,
+        item_price=item.price,
+        user_points=user.points
+    )
+    keyboard = inline.get_merch_store_keyboard(item, page, total_items)
+    try:
+        await callback.message.edit_media(
+            media=types.InputMediaPhoto(media=item.photo_file_id, caption=caption, parse_mode="HTML"),
+            reply_markup=keyboard
+        )
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+             await callback.answer()
+             return
+        await callback.message.delete()
+        await callback.message.answer_photo(
+            photo=item.photo_file_id,
+            caption=caption,
+            reply_markup=keyboard,
+            parse_mode="HTML"
+        )
+    await callback.answer()
 
-# @router.callback_query(F.data.startswith("buy_merch_"))
-# async def confirm_purchase(callback: types.CallbackQuery, session: AsyncSession):
-#     item_id = int(callback.data.split('_')[-1])
-#     item = await merch_requests.get_merch_item_by_id(session, item_id)
-#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-#     if not item:
-#         await callback.answer(Text.MERCH_ITEM_NOT_FOUND, show_alert=True)
-#         return
-#     if user.points < item.price:
-#         await callback.answer(Text.MERCH_PURCHASE_INSUFFICIENT_FUNDS.format(price=item.price, points=user.points), show_alert=True)
-#         return
-#     text = Text.MERCH_PURCHASE_CONFIRMATION.format(
-#         item_name=item.name,
-#         item_price=item.price,
-#         new_balance=user.points - item.price
-#     )
-#     await callback.message.edit_caption(
-#         caption=text,
-#         reply_markup=inline.get_purchase_confirmation_keyboard(item_id),
-#         parse_mode="HTML"
-#     )
-#     await callback.answer()
+@router.callback_query(F.data.startswith("buy_merch_"))
+async def confirm_purchase(callback: types.CallbackQuery, session: AsyncSession):
+    item_id = int(callback.data.split('_')[-1])
+    item = await merch_requests.get_merch_item_by_id(session, item_id)
+    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+    if not item:
+        await callback.answer(Text.MERCH_ITEM_NOT_FOUND, show_alert=True)
+        return
+    if user.points < item.price:
+        await callback.answer(Text.MERCH_PURCHASE_INSUFFICIENT_FUNDS.format(price=item.price, points=user.points), show_alert=True)
+        return
+    text = Text.MERCH_PURCHASE_CONFIRMATION.format(
+        item_name=item.name,
+        item_price=item.price,
+        new_balance=user.points - item.price
+    )
+    await callback.message.edit_caption(
+        caption=text,
+        reply_markup=inline.get_purchase_confirmation_keyboard(item_id),
+        parse_mode="HTML"
+    )
+    await callback.answer()
 
-# @router.callback_query(F.data.startswith("confirm_buy_"))
-# async def process_purchase(callback: types.CallbackQuery, session: AsyncSession):
-#     item_id = int(callback.data.split('_')[-1])
-#     item = await merch_requests.get_merch_item_by_id(session, item_id)
-#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-#     success, message = await merch_requests.create_merch_order(session, user, item)
-#     if success:
-#         await session.commit()
-#         await callback.message.edit_caption(
-#             caption=Text.MERCH_PURCHASE_SUCCESS.format(message=message),
-#             reply_markup=inline.get_back_to_merch_keyboard()
-#         )
-#     else:
-#         await session.rollback()
-#         await callback.answer(Text.MERCH_PURCHASE_ERROR.format(message=message), show_alert=True)
-#     await callback.answer()
+@router.callback_query(F.data.startswith("confirm_buy_"))
+async def process_purchase(callback: types.CallbackQuery, session: AsyncSession):
+    item_id = int(callback.data.split('_')[-1])
+    item = await merch_requests.get_merch_item_by_id(session, item_id)
+    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+    success, message = await merch_requests.create_merch_order(session, user, item)
+    if success:
+        await session.commit()
+        await callback.message.edit_caption(
+            caption=Text.MERCH_PURCHASE_SUCCESS.format(message=message),
+            reply_markup=inline.get_back_to_merch_keyboard()
+        )
+    else:
+        await session.rollback()
+        await callback.answer(Text.MERCH_PURCHASE_ERROR.format(message=message), show_alert=True)
+    await callback.answer()
 
-# @router.callback_query(F.data == "my_orders")
-# async def show_my_orders(callback: types.CallbackQuery, session: AsyncSession):
-#     user_id = callback.from_user.id
-#     user = await user_requests.get_user_by_tg_id(session, user_id)
-#     orders = await merch_requests.get_user_orders(session, user.id)
-#     if not orders:
-#         text = Text.MERCH_NO_ORDERS
-#     else:
-#         text = Text.MERCH_ORDERS_HEADER
-#         for order in orders:
-#             text += Text.MERCH_ORDER_ITEM.format(
-#                 item_name=Text.escape_html(order.item.name),
-#                 date=order.order_date.strftime('%d.%m.%Y'),
-#                 status=Text.escape_html(Text.MERCH_STATUS_MAP.get(order.status, 'Неизвестен'))
-#             )
-#     try:
-#         await callback.message.edit_text(
-#             text,
-#             reply_markup=inline.get_back_to_merch_keyboard(),
-#             parse_mode="HTML"
-#         )
-#     except TelegramBadRequest:
-#         await callback.answer(Text.MERCH_UPDATE_ERROR, show_alert=True)
-#     await callback.answer()
+@router.callback_query(F.data == "my_orders")
+async def show_my_orders(callback: types.CallbackQuery, session: AsyncSession):
+    user_id = callback.from_user.id
+    user = await user_requests.get_user_by_tg_id(session, user_id)
+    orders = await merch_requests.get_user_orders(session, user.id)
+    if not orders:
+        text = Text.MERCH_NO_ORDERS
+    else:
+        text = Text.MERCH_ORDERS_HEADER
+        for order in orders:
+            text += Text.MERCH_ORDER_ITEM.format(
+                item_name=Text.escape_html(order.item.name),
+                date=order.order_date.strftime('%d.%m.%Y'),
+                status=Text.escape_html(Text.MERCH_STATUS_MAP.get(order.status, 'Неизвестен'))
+            )
+    try:
+        await callback.message.edit_text(
+            text,
+            reply_markup=inline.get_back_to_merch_keyboard(),
+            parse_mode="HTML"
+        )
+    except TelegramBadRequest:
+        await callback.answer(Text.MERCH_UPDATE_ERROR, show_alert=True)
+    await callback.answer()
+'''
 
 
 # --- ⚕️ МОИ МЕДОТВОДЫ ---

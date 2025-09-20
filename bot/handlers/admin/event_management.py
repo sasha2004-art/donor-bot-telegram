@@ -126,13 +126,12 @@ async def process_new_blood_center_name(
 async def process_event_donation_type(callback: types.CallbackQuery, state: FSMContext):
     donation_type = callback.data.split("_", 1)[1]
     await state.update_data(donation_type=donation_type)
-    await state.set_state(EventCreation.awaiting_points)
-    await callback.message.edit_text(
-        Text.EVENT_CREATE_STEP_6_POINTS.format(donation_type=donation_type)
-    )
+    await state.set_state(EventCreation.awaiting_limit)
+    await callback.message.edit_text(Text.EVENT_CREATE_STEP_7_LIMIT)
     await callback.answer()
 
 
+'''
 @router.message(EventCreation.awaiting_points)
 async def process_event_points(message: types.Message, state: FSMContext):
     try:
@@ -142,6 +141,7 @@ async def process_event_points(message: types.Message, state: FSMContext):
         await message.answer(Text.EVENT_CREATE_STEP_7_LIMIT)
     except ValueError:
         await message.answer(Text.EVENT_POINTS_NAN_ERROR)
+'''
 
 
 @router.message(EventCreation.awaiting_limit)
@@ -159,6 +159,7 @@ async def process_event_limit(
             session, event_data["blood_center_id"]
         )
 
+        event_data["points_per_donation"] = 0
         text = Text.EVENT_CREATE_CONFIRMATION.format(
             name=event_data["name"],
             datetime=datetime.datetime.fromisoformat(
@@ -357,8 +358,8 @@ async def show_single_event_card(callback: types.CallbackQuery, session: AsyncSe
         ),
         type_header=hbold("Тип донации:"),
         donation_type=donation_type_ru,
-        points_header=hbold("Баллы:"),
-        points_per_donation=event.points_per_donation,
+        points_header="",
+        points_per_donation="",
         limit_header=hbold("Записано/Лимит:"),
         reg_count=reg_count,
         participant_limit=event.participant_limit,

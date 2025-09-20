@@ -21,22 +21,26 @@ class EventCreation(StatesGroup):
     awaiting_blood_center = State()
     awaiting_new_blood_center_name = State()
     awaiting_donation_type = State()
-    awaiting_points = State()
+    # awaiting_points = State()
     awaiting_limit = State()
     awaiting_confirmation = State()
 
 
-# class MerchCreation(StatesGroup):
-#     awaiting_photo = State()
-#     awaiting_name = State()
-#     awaiting_description = State()
-#     awaiting_price = State()
+'''
+class MerchCreation(StatesGroup):
+    awaiting_photo = State()
+    awaiting_name = State()
+    awaiting_description = State()
+    awaiting_price = State()
+'''
 
 
+'''
 class PointsChange(StatesGroup):
     awaiting_user_id = State()
     awaiting_points_amount = State()
     awaiting_reason = State()
+'''
 
 
 class ManualWaiver(StatesGroup):
@@ -76,9 +80,11 @@ class EventEditing(StatesGroup):
     awaiting_new_blood_center_name_for_edit = State()
 
 
-# class MerchEditing(StatesGroup):
-#     choosing_field = State()
-#     awaiting_new_value = State()
+'''
+class MerchEditing(StatesGroup):
+    choosing_field = State()
+    awaiting_new_value = State()
+'''
 
 
 class UserSearch(StatesGroup):
