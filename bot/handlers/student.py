@@ -129,71 +129,81 @@ async def show_donation_history(callback: types.CallbackQuery, session: AsyncSes
 # --- 📅 ЗАПИСЬ НА ДОНАЦИЮ ---
 
 @router.callback_query(F.data == "register_donation")
-async def show_survey_or_events(callback: types.CallbackQuery, session: AsyncSession, ngrok_url: str):
+async def show_survey_or_events(callback: types.CallbackQuery, session: AsyncSession):
     """
     Главный хендлер для "Записаться на донацию".
-    Проверяет наличие свежей анкеты. Если она есть - показывает мероприятия.
-    Если нет - показывает WebApp для прохождения опроса.
+    Сразу показывает мероприятия для регистрации.
     """
     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
     if not user:
         await callback.answer(Text.ERROR_PROFILE_NOT_FOUND, show_alert=True)
         return
-
-    # Проверяем, есть ли сегодня мероприятие
-    events = await event_requests.get_active_events_for_user(session, user.id)
-    today = datetime.date.today()
-    is_today_event_available = any(event.event_datetime.date() == today for event in events)
-
-    if is_today_event_available:
-        await show_events_for_registration(callback.message, session, user.id)
-        return
-
-    # Проверяем наличие недавнего успешного опросника
-    has_recent_survey = await user_requests.check_recent_survey(session, user.id)
-
-    if has_recent_survey:
-        # Если опросник пройден, сразу показываем мероприятия
-        await callback.answer("Вы уже проходили опросник. Показываю доступные мероприятия.")
-        await show_events_for_registration(callback.message, session, user.id)
-    else:
-        # Если опросника нет, отправляем в WebApp
-        if not ngrok_url:
-            await callback.answer("Ошибка: Сервис временно недоступен. Попробуйте позже.", show_alert=True)
-            return
-
-        cache_buster = int(time.time())
-        # Добавляем пол пользователя в URL
-        webapp_url = f"{ngrok_url}/webapp/index.html?v={cache_buster}&gender={user.gender}"
         
-        keyboard = types.InlineKeyboardMarkup(
-            inline_keyboard=[[
-                types.InlineKeyboardButton(
-                    text="📝 Пройти опрос перед донацией",
-                    web_app=WebAppInfo(url=webapp_url)
-                )
-            ],[
-                types.InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu")
-            ]]
-        )
-        
-        try:
-            await callback.message.edit_text(
-                "Перед записью на донацию необходимо пройти небольшой опрос для выявления противопоказаний. "
-                "Это займет не более минуты. Пожалуйста, отвечайте честно.",
-                reply_markup=keyboard
-            )
-        except TelegramBadRequest:
-            try:
-                await callback.message.delete()
-            except TelegramBadRequest:
-                pass
-            await callback.message.answer(
-                "Перед записью на донацию необходимо пройти небольшой опрос для выявления противопоказаний. "
-                "Это займет не более минуты. Пожалуйста, отвечайте честно.",
-                reply_markup=keyboard
-            )
-        await callback.answer()
+    await show_events_for_registration(callback.message, session, user.id)
+    await callback.answer()
+
+    # --- ЗАКОММЕНТИРОВАННАЯ СТАРАЯ ЛОГИКА ---
+    # ngrok_url: str
+    # """
+    # Главный хендлер для "Записаться на донацию".
+    # Проверяет наличие свежей анкеты. Если она есть - показывает мероприятия.
+    # Если нет - показывает WebApp для прохождения опроса.
+    # """
+    #
+    # # Проверяем, есть ли сегодня мероприятие
+    # events = await event_requests.get_active_events_for_user(session, user.id)
+    # today = datetime.date.today()
+    # is_today_event_available = any(event.event_datetime.date() == today for event in events)
+    #
+    # if is_today_event_available:
+    #     await show_events_for_registration(callback.message, session, user.id)
+    #     return
+    #
+    # # Проверяем наличие недавнего успешного опросника
+    # has_recent_survey = await user_requests.check_recent_survey(session, user.id)
+    #
+    # if has_recent_survey:
+    #     # Если опросник пройден, сразу показываем мероприятия
+    #     await callback.answer("Вы уже проходили опросник. Показываю доступные мероприятия.")
+    #     await show_events_for_registration(callback.message, session, user.id)
+    # else:
+    #     # Если опросника нет, отправляем в WebApp
+    #     if not ngrok_url:
+    #         await callback.answer("Ошибка: Сервис временно недоступен. Попробуйте позже.", show_alert=True)
+    #         return
+    #
+    #     cache_buster = int(time.time())
+    #     # Добавляем пол пользователя в URL
+    #     webapp_url = f"{ngrok_url}/webapp/index.html?v={cache_buster}&gender={user.gender}"
+    #
+    #     keyboard = types.InlineKeyboardMarkup(
+    #         inline_keyboard=[[
+    #             types.InlineKeyboardButton(
+    #                 text="📝 Пройти опрос перед донацией",
+    #                 web_app=WebAppInfo(url=webapp_url)
+    #             )
+    #         ],[
+    #             types.InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu")
+    #         ]]
+    #     )
+    #
+    #     try:
+    #         await callback.message.edit_text(
+    #             "Перед записью на донацию необходимо пройти небольшой опрос для выявления противопоказаний. "
+    #             "Это займет не более минуты. Пожалуйста, отвечайте честно.",
+    #             reply_markup=keyboard
+    #         )
+    #     except TelegramBadRequest:
+    #         try:
+    #             await callback.message.delete()
+    #         except TelegramBadRequest:
+    #             pass
+    #         await callback.message.answer(
+    #             "Перед записью на донацию необходимо пройти небольшой опрос для выявления противопоказаний. "
+    #             "Это займет не более минуты. Пожалуйста, отвечайте честно.",
+    #             reply_markup=keyboard
+    #         )
+    #     await callback.answer()
 
 
 @router.callback_query(F.data.startswith("reg_event_"))
@@ -274,106 +284,106 @@ async def cancel_my_registration(callback: types.CallbackQuery, session: AsyncSe
 
 # --- 🎁 МАГАЗИН МЕРЧА ---
 
-@router.callback_query(F.data == "merch_store")
-@router.callback_query(F.data.startswith("merch_page_"))
-async def show_merch_store(callback: types.CallbackQuery, session: AsyncSession):
-    page = 1
-    if callback.data.startswith("merch_page_"):
-        page = int(callback.data.split('_')[-1])
-    item, total_items = await merch_requests.get_merch_page(session, page=page)
-    if not item:
-        await callback.answer(Text.MERCH_NO_ITEMS, show_alert=True)
-        return
-    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-    caption = Text.MERCH_ITEM_CAPTION.format(
-        item_name=item.name,
-        item_description=item.description,
-        item_price=item.price,
-        user_points=user.points
-    )
-    keyboard = inline.get_merch_store_keyboard(item, page, total_items)
-    try:
-        await callback.message.edit_media(
-            media=types.InputMediaPhoto(media=item.photo_file_id, caption=caption, parse_mode="HTML"),
-            reply_markup=keyboard
-        )
-    except TelegramBadRequest as e:
-        if "message is not modified" in str(e):
-             await callback.answer()
-             return
-        await callback.message.delete()
-        await callback.message.answer_photo(
-            photo=item.photo_file_id,
-            caption=caption,
-            reply_markup=keyboard,
-            parse_mode="HTML"
-        )
-    await callback.answer()
+# @router.callback_query(F.data == "merch_store")
+# @router.callback_query(F.data.startswith("merch_page_"))
+# async def show_merch_store(callback: types.CallbackQuery, session: AsyncSession):
+#     page = 1
+#     if callback.data.startswith("merch_page_"):
+#         page = int(callback.data.split('_')[-1])
+#     item, total_items = await merch_requests.get_merch_page(session, page=page)
+#     if not item:
+#         await callback.answer(Text.MERCH_NO_ITEMS, show_alert=True)
+#         return
+#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+#     caption = Text.MERCH_ITEM_CAPTION.format(
+#         item_name=item.name,
+#         item_description=item.description,
+#         item_price=item.price,
+#         user_points=user.points
+#     )
+#     keyboard = inline.get_merch_store_keyboard(item, page, total_items)
+#     try:
+#         await callback.message.edit_media(
+#             media=types.InputMediaPhoto(media=item.photo_file_id, caption=caption, parse_mode="HTML"),
+#             reply_markup=keyboard
+#         )
+#     except TelegramBadRequest as e:
+#         if "message is not modified" in str(e):
+#              await callback.answer()
+#              return
+#         await callback.message.delete()
+#         await callback.message.answer_photo(
+#             photo=item.photo_file_id,
+#             caption=caption,
+#             reply_markup=keyboard,
+#             parse_mode="HTML"
+#         )
+#     await callback.answer()
 
-@router.callback_query(F.data.startswith("buy_merch_"))
-async def confirm_purchase(callback: types.CallbackQuery, session: AsyncSession):
-    item_id = int(callback.data.split('_')[-1])
-    item = await merch_requests.get_merch_item_by_id(session, item_id)
-    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-    if not item:
-        await callback.answer(Text.MERCH_ITEM_NOT_FOUND, show_alert=True)
-        return
-    if user.points < item.price:
-        await callback.answer(Text.MERCH_PURCHASE_INSUFFICIENT_FUNDS.format(price=item.price, points=user.points), show_alert=True)
-        return
-    text = Text.MERCH_PURCHASE_CONFIRMATION.format(
-        item_name=item.name,
-        item_price=item.price,
-        new_balance=user.points - item.price
-    )
-    await callback.message.edit_caption(
-        caption=text,
-        reply_markup=inline.get_purchase_confirmation_keyboard(item_id),
-        parse_mode="HTML"
-    )
-    await callback.answer()
+# @router.callback_query(F.data.startswith("buy_merch_"))
+# async def confirm_purchase(callback: types.CallbackQuery, session: AsyncSession):
+#     item_id = int(callback.data.split('_')[-1])
+#     item = await merch_requests.get_merch_item_by_id(session, item_id)
+#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+#     if not item:
+#         await callback.answer(Text.MERCH_ITEM_NOT_FOUND, show_alert=True)
+#         return
+#     if user.points < item.price:
+#         await callback.answer(Text.MERCH_PURCHASE_INSUFFICIENT_FUNDS.format(price=item.price, points=user.points), show_alert=True)
+#         return
+#     text = Text.MERCH_PURCHASE_CONFIRMATION.format(
+#         item_name=item.name,
+#         item_price=item.price,
+#         new_balance=user.points - item.price
+#     )
+#     await callback.message.edit_caption(
+#         caption=text,
+#         reply_markup=inline.get_purchase_confirmation_keyboard(item_id),
+#         parse_mode="HTML"
+#     )
+#     await callback.answer()
 
-@router.callback_query(F.data.startswith("confirm_buy_"))
-async def process_purchase(callback: types.CallbackQuery, session: AsyncSession):
-    item_id = int(callback.data.split('_')[-1])
-    item = await merch_requests.get_merch_item_by_id(session, item_id)
-    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-    success, message = await merch_requests.create_merch_order(session, user, item)
-    if success:
-        await session.commit() 
-        await callback.message.edit_caption(
-            caption=Text.MERCH_PURCHASE_SUCCESS.format(message=message),
-            reply_markup=inline.get_back_to_merch_keyboard()
-        )
-    else:
-        await session.rollback() 
-        await callback.answer(Text.MERCH_PURCHASE_ERROR.format(message=message), show_alert=True)
-    await callback.answer()
+# @router.callback_query(F.data.startswith("confirm_buy_"))
+# async def process_purchase(callback: types.CallbackQuery, session: AsyncSession):
+#     item_id = int(callback.data.split('_')[-1])
+#     item = await merch_requests.get_merch_item_by_id(session, item_id)
+#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+#     success, message = await merch_requests.create_merch_order(session, user, item)
+#     if success:
+#         await session.commit()
+#         await callback.message.edit_caption(
+#             caption=Text.MERCH_PURCHASE_SUCCESS.format(message=message),
+#             reply_markup=inline.get_back_to_merch_keyboard()
+#         )
+#     else:
+#         await session.rollback()
+#         await callback.answer(Text.MERCH_PURCHASE_ERROR.format(message=message), show_alert=True)
+#     await callback.answer()
 
-@router.callback_query(F.data == "my_orders")
-async def show_my_orders(callback: types.CallbackQuery, session: AsyncSession):
-    user_id = callback.from_user.id
-    user = await user_requests.get_user_by_tg_id(session, user_id)
-    orders = await merch_requests.get_user_orders(session, user.id)
-    if not orders:
-        text = Text.MERCH_NO_ORDERS
-    else:
-        text = Text.MERCH_ORDERS_HEADER
-        for order in orders:
-            text += Text.MERCH_ORDER_ITEM.format(
-                item_name=Text.escape_html(order.item.name),
-                date=order.order_date.strftime('%d.%m.%Y'),
-                status=Text.escape_html(Text.MERCH_STATUS_MAP.get(order.status, 'Неизвестен'))
-            )
-    try:
-        await callback.message.edit_text(
-            text,
-            reply_markup=inline.get_back_to_merch_keyboard(),
-            parse_mode="HTML"
-        )
-    except TelegramBadRequest:
-        await callback.answer(Text.MERCH_UPDATE_ERROR, show_alert=True)
-    await callback.answer()
+# @router.callback_query(F.data == "my_orders")
+# async def show_my_orders(callback: types.CallbackQuery, session: AsyncSession):
+#     user_id = callback.from_user.id
+#     user = await user_requests.get_user_by_tg_id(session, user_id)
+#     orders = await merch_requests.get_user_orders(session, user.id)
+#     if not orders:
+#         text = Text.MERCH_NO_ORDERS
+#     else:
+#         text = Text.MERCH_ORDERS_HEADER
+#         for order in orders:
+#             text += Text.MERCH_ORDER_ITEM.format(
+#                 item_name=Text.escape_html(order.item.name),
+#                 date=order.order_date.strftime('%d.%m.%Y'),
+#                 status=Text.escape_html(Text.MERCH_STATUS_MAP.get(order.status, 'Неизвестен'))
+#             )
+#     try:
+#         await callback.message.edit_text(
+#             text,
+#             reply_markup=inline.get_back_to_merch_keyboard(),
+#             parse_mode="HTML"
+#         )
+#     except TelegramBadRequest:
+#         await callback.answer(Text.MERCH_UPDATE_ERROR, show_alert=True)
+#     await callback.answer()
 
 
 # --- ⚕️ МОИ МЕДОТВОДЫ ---
@@ -428,80 +438,80 @@ async def show_my_waivers(callback: types.CallbackQuery, session: AsyncSession):
     await callback.answer()
 
 
-@router.callback_query(F.data == "set_user_waiver")
-async def set_user_waiver_start(callback: types.CallbackQuery, state: FSMContext):
-    await state.set_state(UserWaiver.awaiting_end_date)
-    await callback.message.edit_text(Text.WAIVER_SET_PROMPT, parse_mode="HTML")
-    await callback.answer()
-
-@router.message(UserWaiver.awaiting_end_date)
-async def process_user_waiver_date(message: types.Message, state: FSMContext):
-    try:
-        end_date = datetime.datetime.strptime(message.text, "%d.%m.%Y").date()
-        if end_date <= datetime.date.today():
-            await message.answer(Text.WAIVER_DATE_IN_PAST_ERROR)
-            return
-            
-        await state.update_data(end_date=end_date)
-        await state.set_state(UserWaiver.awaiting_reason)
-        await message.answer(Text.WAIVER_REASON_PROMPT)
-    except ValueError:
-        await message.answer(Text.DATE_FORMAT_ERROR, parse_mode="HTML")
-
-@router.message(UserWaiver.awaiting_reason)
-async def process_user_waiver_reason(message: types.Message, state: FSMContext, session: AsyncSession):
-    data = await state.get_data()
-    end_date = data['end_date']
-    reason = message.text
-
-    user = await user_requests.get_user_by_tg_id(session, message.from_user.id)
-    await user_requests.add_user_waiver(session, user.id, end_date, reason)
-    
-    await state.clear()
-    
-    await message.answer(Text.WAIVER_SET_SUCCESS.format(end_date=end_date.strftime('%d.%m.%Y')))
-    
-    await send_waivers_menu(message, message.from_user.id, session)
-
-@router.callback_query(F.data == "cancel_user_waiver")
-async def cancel_user_waiver_start(callback: types.CallbackQuery, session: AsyncSession):
-    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-    all_waivers = await user_requests.get_user_active_waivers(session, user.id)
-    user_created_waivers = [w for w in all_waivers if w.created_by == 'user']
-    
-    if not user_created_waivers:
-        await callback.answer(Text.WAIVER_NOTHING_TO_CANCEL, show_alert=True)
-        return
-
-    await callback.message.edit_text(
-        Text.WAIVER_CANCELLATION_PROMPT,
-        reply_markup=inline.get_waiver_cancellation_keyboard(user_created_waivers)
-    )
-    await callback.answer()
-
-@router.callback_query(F.data.startswith("delete_waiver_"))
-async def process_waiver_deletion(callback: types.CallbackQuery, session: AsyncSession):
-    waiver_id = int(callback.data.split('_')[-1])
-    
-    user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
-    if not user:
-        await callback.answer(Text.ERROR_PROFILE_NOT_FOUND, show_alert=True)
-        return
-
-    user_internal_id = user.id
-    success = await user_requests.delete_user_waiver(session, waiver_id, user_internal_id)
-    
-    if success:
-        await callback.answer(Text.WAIVER_CANCEL_SUCCESS, show_alert=True)
-    else:
-        await callback.answer(Text.WAIVER_CANCEL_FAIL, show_alert=True)
-    
-    try:
-        await callback.message.delete()
-    except TelegramBadRequest:
-        logger.warning("Could not delete message in process_waiver_deletion.")
-
-    await send_waivers_menu(callback.message, callback.from_user.id, session)
+# @router.callback_query(F.data == "set_user_waiver")
+# async def set_user_waiver_start(callback: types.CallbackQuery, state: FSMContext):
+#     await state.set_state(UserWaiver.awaiting_end_date)
+#     await callback.message.edit_text(Text.WAIVER_SET_PROMPT, parse_mode="HTML")
+#     await callback.answer()
+#
+# @router.message(UserWaiver.awaiting_end_date)
+# async def process_user_waiver_date(message: types.Message, state: FSMContext):
+#     try:
+#         end_date = datetime.datetime.strptime(message.text, "%d.%m.%Y").date()
+#         if end_date <= datetime.date.today():
+#             await message.answer(Text.WAIVER_DATE_IN_PAST_ERROR)
+#             return
+#
+#         await state.update_data(end_date=end_date)
+#         await state.set_state(UserWaiver.awaiting_reason)
+#         await message.answer(Text.WAIVER_REASON_PROMPT)
+#     except ValueError:
+#         await message.answer(Text.DATE_FORMAT_ERROR, parse_mode="HTML")
+#
+# @router.message(UserWaiver.awaiting_reason)
+# async def process_user_waiver_reason(message: types.Message, state: FSMContext, session: AsyncSession):
+#     data = await state.get_data()
+#     end_date = data['end_date']
+#     reason = message.text
+#
+#     user = await user_requests.get_user_by_tg_id(session, message.from_user.id)
+#     await user_requests.add_user_waiver(session, user.id, end_date, reason)
+#
+#     await state.clear()
+#
+#     await message.answer(Text.WAIVER_SET_SUCCESS.format(end_date=end_date.strftime('%d.%m.%Y')))
+#
+#     await send_waivers_menu(message, message.from_user.id, session)
+#
+# @router.callback_query(F.data == "cancel_user_waiver")
+# async def cancel_user_waiver_start(callback: types.CallbackQuery, session: AsyncSession):
+#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+#     all_waivers = await user_requests.get_user_active_waivers(session, user.id)
+#     user_created_waivers = [w for w in all_waivers if w.created_by == 'user']
+#
+#     if not user_created_waivers:
+#         await callback.answer(Text.WAIVER_NOTHING_TO_CANCEL, show_alert=True)
+#         return
+#
+#     await callback.message.edit_text(
+#         Text.WAIVER_CANCELLATION_PROMPT,
+#         reply_markup=inline.get_waiver_cancellation_keyboard(user_created_waivers)
+#     )
+#     await callback.answer()
+#
+# @router.callback_query(F.data.startswith("delete_waiver_"))
+# async def process_waiver_deletion(callback: types.CallbackQuery, session: AsyncSession):
+#     waiver_id = int(callback.data.split('_')[-1])
+#
+#     user = await user_requests.get_user_by_tg_id(session, callback.from_user.id)
+#     if not user:
+#         await callback.answer(Text.ERROR_PROFILE_NOT_FOUND, show_alert=True)
+#         return
+#
+#     user_internal_id = user.id
+#     success = await user_requests.delete_user_waiver(session, waiver_id, user_internal_id)
+#
+#     if success:
+#         await callback.answer(Text.WAIVER_CANCEL_SUCCESS, show_alert=True)
+#     else:
+#         await callback.answer(Text.WAIVER_CANCEL_FAIL, show_alert=True)
+#
+#     try:
+#         await callback.message.delete()
+#     except TelegramBadRequest:
+#         logger.warning("Could not delete message in process_waiver_deletion.")
+#
+#     await send_waivers_menu(callback.message, callback.from_user.id, session)
 
 
 # --- ℹ️ ПОЛЕЗНАЯ ИНФОРМАЦИЯ ---
@@ -674,14 +684,30 @@ async def process_other_suggestions(event: types.Message | types.CallbackQuery, 
 @router.callback_query(F.data == "ask_question")
 async def start_asking_question(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(AskQuestion.awaiting_question)
+    await state.update_data(prompt_message_id=callback.message.message_id)
     await callback.message.edit_text("Напишите ваш вопрос, и организаторы скоро на него ответят.")
     await callback.answer()
 
 @router.message(AskQuestion.awaiting_question)
-async def process_question(message: types.Message, state: FSMContext, session: AsyncSession):
+async def process_question(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
     user = await user_requests.get_user_by_tg_id(session, message.from_user.id)
+    data = await state.get_data()
+    prompt_message_id = data.get('prompt_message_id')
+
     await question_requests.create_question(session, user.id, message.text)
     await state.clear()
+
+    try:
+        await message.delete()
+    except TelegramBadRequest as e:
+        logger.warning(f"Could not delete user question message: {e}")
+
+    if prompt_message_id:
+        try:
+            await bot.delete_message(chat_id=message.chat.id, message_id=prompt_message_id)
+        except TelegramBadRequest as e:
+            logger.warning(f"Could not delete bot prompt message: {e}")
+
     await message.answer(
         "Спасибо! Ваш вопрос отправлен организаторам. Ответ придет сюда же, в этот чат.",
         reply_markup=inline.get_back_to_main_menu_keyboard()

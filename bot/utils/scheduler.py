@@ -1,9 +1,12 @@
 import logging
 import datetime
-from aiogram import Bot
+import time
+from aiogram import Bot, types
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import WebAppInfo
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import async_sessionmaker
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.orm import joinedload
 from bot.db.models import EventRegistration, MedicalWaiver, Event, User, Donation, NoShowReport
 from bot.utils.text_messages import Text
@@ -13,9 +16,65 @@ from aiogram.fsm.storage.base import StorageKey
 from bot.states.states import FeedbackSurvey
 from bot.keyboards import inline
 from bot.utils.graduation import check_graduation_status
+from bot.db import event_requests, user_requests
 
 
 logger = logging.getLogger(__name__)
+
+
+async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngrok_url: str):
+    """Отправляет напоминание о прохождении опросника за 3 дня до мероприятия."""
+    reminder_date = datetime.date.today() + datetime.timedelta(days=3)
+    logger.info(f"Running survey reminder job for events on {reminder_date}.")
+
+    if not ngrok_url:
+        logger.error("NGROK_URL is not set, cannot send survey reminders.")
+        return
+
+    async with session_pool() as session:
+        stmt = select(Event).where(func.date(Event.event_datetime) == reminder_date, Event.is_active == True).options(joinedload(Event.registrations).joinedload(EventRegistration.user))
+        events_result = await session.execute(stmt)
+        events = events_result.scalars().unique().all()
+
+        if not events:
+            logger.info("No events found for survey reminders.")
+            return
+
+        for event in events:
+            registrations = event.registrations
+            if not registrations:
+                logger.info(f"No registrations for event {event.id} to send survey reminders.")
+                continue
+
+            logger.info(f"Found {len(registrations)} users for event {event.id} to send survey reminders.")
+
+            for reg in registrations:
+                user = reg.user
+                if not user:
+                    continue
+
+                has_recent_survey = await user_requests.check_recent_survey(session, user.id)
+                if has_recent_survey:
+                    logger.info(f"User {user.id} has a recent survey, skipping.")
+                    continue
+
+                try:
+                    cache_buster = int(time.time())
+                    webapp_url = f"{ngrok_url}/webapp/index.html?v={cache_buster}&gender={user.gender}"
+
+                    builder = InlineKeyboardBuilder()
+                    builder.row(types.InlineKeyboardButton(
+                        text="📝 Пройти опрос",
+                        web_app=WebAppInfo(url=webapp_url)
+                    ))
+
+                    await bot.send_message(
+                        chat_id=user.telegram_id,
+                        text="Напоминаем, что вы записаны на донацию через 3 дня. Пожалуйста, пройдите короткий опрос на противопоказания.",
+                        reply_markup=builder.as_markup()
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send survey reminder to user {user.id} for event {event.id}. Error: {e}", exc_info=True)
 
 async def send_reminders_for_interval(
     bot: Bot, 
@@ -181,7 +240,7 @@ async def check_student_status(bot: Bot, session_pool: async_sessionmaker):
             except Exception as e:
                 logger.error(f"Failed to check student status for user {student.id}. Error: {e}", exc_info=True)
 
-def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage) -> AsyncIOScheduler:
+def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage, ngrok_url: str) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
     scheduler.add_job(
@@ -237,6 +296,14 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
     )
     
     scheduler.add_job(
+        send_survey_reminders,
+        trigger='cron',
+        hour=11,
+        minute=0,
+        args=[bot, session_pool, ngrok_url]
+    )
+
+    scheduler.add_job(
         check_student_status,
         trigger='cron',
         month=9,
@@ -256,7 +323,7 @@ def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryS
         args=[bot, session_pool]
     )
 
-    logger.info("Scheduler configured successfully with 7 jobs.")
+    logger.info("Scheduler configured successfully with 8 jobs.")
     return scheduler
 
 async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):

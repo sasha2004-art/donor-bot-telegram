@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from .models import User, Donation, MedicalWaiver
 from sqlalchemy import and_, or_, not_
 from sqlalchemy.orm import aliased, joinedload 
-from .models import User, Donation, MedicalWaiver, Event, Survey
+from .models import User, Donation, MedicalWaiver, Event, Survey, EventRegistration
 import logging
 logger = logging.getLogger(__name__)
 
@@ -196,19 +196,20 @@ async def get_users_for_mailing(session: AsyncSession, filters: dict) -> list[Us
     """
     stmt = select(User)
     
-    # Копируем фильтры, чтобы безопасно изменять их
     filters_to_apply = filters.copy()
     
-    # Сначала обрабатываем специальный фильтр по ролям
+    if 'event_id' in filters_to_apply:
+        event_id = filters_to_apply.pop('event_id')
+        subquery = select(EventRegistration.user_id).where(EventRegistration.event_id == event_id).distinct()
+        stmt = stmt.where(User.id.in_(subquery))
+
     if 'role' in filters_to_apply:
-        role_filter = filters_to_apply.pop('role') # Извлекаем и удаляем, чтобы не попасть в цикл ниже
+        role_filter = filters_to_apply.pop('role')
         if role_filter == 'volunteers':
             stmt = stmt.where(User.role.in_(['volunteer', 'admin', 'main_admin']))
         elif role_filter == 'admins':
             stmt = stmt.where(User.role.in_(['admin', 'main_admin']))
-        # Если role_filter == 'all', то ничего не делаем, это фильтр по умолчанию
 
-    # Применяем остальные фильтры по атрибутам
     for key, value in filters_to_apply.items():
         if hasattr(User, key):
             stmt = stmt.where(getattr(User, key) == value)

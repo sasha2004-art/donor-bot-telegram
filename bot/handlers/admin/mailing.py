@@ -141,6 +141,44 @@ async def reset_audience_filters(callback: types.CallbackQuery, state: FSMContex
     await callback.answer("Все фильтры сброшены.", show_alert=True)
 
 
+@router.callback_query(Mailing.awaiting_audience_choice, F.data == "mail_to_event_participants")
+async def choose_event_for_mailing(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Шаг 3.1 (альтернативный): Админ выбрал рассылку по участникам мероприятия."""
+    await state.set_state(Mailing.awaiting_event_choice)
+
+    events = await admin_requests.get_all_active_events(session)
+    if not events:
+        await callback.answer("Нет активных мероприятий для выбора.", show_alert=True)
+        return
+
+    builder = InlineKeyboardBuilder()
+    for event in events:
+        builder.row(types.InlineKeyboardButton(
+            text=f"{event.event_datetime.strftime('%d.%m')} - {event.name}",
+            callback_data=f"mail_event_{event.id}"
+        ))
+    builder.row(types.InlineKeyboardButton(text="↩️ Назад", callback_data="mail_audience_back"))
+
+    await callback.message.edit_text("Выберите мероприятие, участникам которого нужно отправить рассылку:", reply_markup=builder.as_markup())
+    await callback.answer()
+
+
+@router.callback_query(Mailing.awaiting_event_choice, F.data.startswith("mail_event_"))
+async def set_event_for_mailing(callback: types.CallbackQuery, state: FSMContext):
+    """Шаг 3.2 (альтернативный): Админ выбрал мероприятие."""
+    event_id = int(callback.data.split('_')[-1])
+
+    data = await state.get_data()
+    current_filters = data.get("filters", {})
+    current_filters['event_id'] = event_id
+    await state.update_data(filters=current_filters)
+
+    await state.set_state(Mailing.awaiting_audience_choice)
+    await callback.message.delete()
+    await show_audience_choice_menu(callback.message, state)
+    await callback.answer("Фильтр по мероприятию добавлен!", show_alert=True)
+
+
 @router.callback_query(Mailing.awaiting_audience_choice, F.data == "mail_audience_finish")
 async def finish_audience_selection(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
     """Шаг 4: Админ нажал 'Готово'. Переход к подтверждению."""

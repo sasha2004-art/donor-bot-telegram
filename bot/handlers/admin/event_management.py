@@ -53,17 +53,9 @@ async def process_event_datetime(message: types.Message, state: FSMContext):
         await message.answer(Text.DATE_FORMAT_ERROR, parse_mode="HTML")
 
 @router.message(EventCreation.awaiting_location_text)
-async def process_event_location_text(message: types.Message, state: FSMContext):
-    await state.update_data(location=message.text)
-    await state.set_state(EventCreation.awaiting_location_point)
-    await message.answer(Text.EVENT_CREATE_STEP_4_LOCATION_POINT)
-
-@router.message(EventCreation.awaiting_location_point, F.location)
-async def process_event_location_point(message: types.Message, state: FSMContext, session: AsyncSession):
-    await state.update_data(
-        latitude=message.location.latitude,
-        longitude=message.location.longitude
-    )
+async def process_event_location_text(message: types.Message, state: FSMContext, session: AsyncSession):
+    # Шаг с геоточкой убран
+    await state.update_data(location=message.text, latitude=None, longitude=None)
     await state.set_state(EventCreation.awaiting_blood_center)
 
     blood_centers = await admin_requests.get_all_blood_centers(session)
@@ -71,6 +63,20 @@ async def process_event_location_point(message: types.Message, state: FSMContext
         "Выберите центр крови или добавьте новый:",
         reply_markup=inline.get_blood_centers_keyboard(blood_centers)
     )
+
+# @router.message(EventCreation.awaiting_location_point, F.location)
+# async def process_event_location_point(message: types.Message, state: FSMContext, session: AsyncSession):
+#     await state.update_data(
+#         latitude=message.location.latitude,
+#         longitude=message.location.longitude
+#     )
+#     await state.set_state(EventCreation.awaiting_blood_center)
+#
+#     blood_centers = await admin_requests.get_all_blood_centers(session)
+#     await message.answer(
+#         "Выберите центр крови или добавьте новый:",
+#         reply_markup=inline.get_blood_centers_keyboard(blood_centers)
+#     )
 
 
 @router.callback_query(EventCreation.awaiting_blood_center, F.data.startswith("select_blood_center_"))

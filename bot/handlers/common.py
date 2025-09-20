@@ -1,3 +1,4 @@
+import re
 from aiogram import Router, F, types
 from aiogram.filters import CommandStart, Command, StateFilter
 from aiogram.fsm.context import FSMContext
@@ -147,14 +148,26 @@ async def handle_contact(message: types.Message, session: AsyncSession, state: F
 async def process_full_name(message: types.Message, state: FSMContext, session: AsyncSession):
     full_name = message.text.strip()
 
-    allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
-    if not all(c.lower() in allowed_chars or c.isspace() for c in full_name):
-        await message.answer(Text.FIO_VALIDATION_ERROR)
-        return
+    # Закомментированный старый блок валидации
+    # allowed_chars = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя-"
+    # if not all(c.lower() in allowed_chars or c.isspace() for c in full_name):
+    #     await message.answer(Text.FIO_VALIDATION_ERROR)
+    #     return
+    #
+    # name_parts = full_name.split()
+    # if len(name_parts) < 2:
+    #     await message.answer("Пожалуйста, введите как минимум Фамилию и Имя.")
+    #     return
 
+    # Новая логика: ФИО должно состоять как минимум из 2-х слов
+    # и не должно содержать цифр или спецсимволов, кроме дефиса.
     name_parts = full_name.split()
-    if len(name_parts) < 2:
-        await message.answer("Пожалуйста, введите как минимум Фамилию и Имя.")
+    # Python's `isalpha()` handles Unicode, so it works for Cyrillic.
+    # It returns False for digits and most special characters.
+    has_invalid_chars = any(not (c.isalpha() or c.isspace() or c == '-') for c in full_name)
+
+    if len(name_parts) < 2 or has_invalid_chars:
+        await message.answer("Пожалуйста, введите корректные Фамилию, Имя и (если есть) Отчество, используя только буквы.")
         return
 
     corrected_name = " ".join([part.strip().capitalize() for part in name_parts])
@@ -193,9 +206,10 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
         await state.set_state(Registration.awaiting_gender)
     elif category == 'student':
-        await state.update_data(university="НИЯУ МИФИ")
-        await callback.message.edit_text(Text.GET_FACULTY, reply_markup=inline.get_faculties_keyboard())
-        await state.set_state(Registration.awaiting_faculty)
+        # Сбор данных о факультетах убран
+        await state.update_data(university="НИЯУ МИФИ", faculty="Не указан")
+        await callback.message.edit_text(Text.GET_GROUP)
+        await state.set_state(Registration.awaiting_study_group)
     elif category == 'employee':
         await state.update_data(university="НИЯУ МИФИ", faculty="Сотрудник", study_group="-")
         await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
@@ -206,47 +220,59 @@ async def process_category(callback: types.CallbackQuery, state: FSMContext):
 
 
 
-@router.callback_query(Registration.awaiting_faculty, F.data.startswith('faculty_'))
-async def process_faculty(callback: types.CallbackQuery, state: FSMContext):
-    faculty_name = callback.data.split('_', 1)[1]
-    
-    if faculty_name == 'Other':
-        await callback.message.edit_text(Text.GET_CUSTOM_FACULTY)
-        await state.set_state(Registration.awaiting_custom_faculty_name)
-    else:
-        await state.update_data(faculty=faculty_name)
-        user_data = await state.get_data()
-        if user_data.get("category") == "employee":
-            await state.update_data(study_group="-")
-            await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
-            await state.set_state(Registration.awaiting_gender)
-        else:
-            await callback.message.edit_text(Text.FACULTY_SELECTED.format(faculty=faculty_name))
-            await callback.message.answer(Text.GET_GROUP)
-            await state.set_state(Registration.awaiting_study_group)
-    
-    await callback.answer()
-
-
-@router.message(Registration.awaiting_custom_faculty_name)
-async def process_custom_faculty_name(message: types.Message, state: FSMContext):
-    await state.update_data(faculty=message.text)
-    await message.answer(Text.GET_GROUP)
-    await state.set_state(Registration.awaiting_study_group)
+# @router.callback_query(Registration.awaiting_faculty, F.data.startswith('faculty_'))
+# async def process_faculty(callback: types.CallbackQuery, state: FSMContext):
+#     faculty_name = callback.data.split('_', 1)[1]
+#
+#     if faculty_name == 'Other':
+#         await callback.message.edit_text(Text.GET_CUSTOM_FACULTY)
+#         await state.set_state(Registration.awaiting_custom_faculty_name)
+#     else:
+#         await state.update_data(faculty=faculty_name)
+#         user_data = await state.get_data()
+#         if user_data.get("category") == "employee":
+#             await state.update_data(study_group="-")
+#             await callback.message.edit_text(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
+#             await state.set_state(Registration.awaiting_gender)
+#         else:
+#             await callback.message.edit_text(Text.FACULTY_SELECTED.format(faculty=faculty_name))
+#             await callback.message.answer(Text.GET_GROUP)
+#             await state.set_state(Registration.awaiting_study_group)
+#
+#     await callback.answer()
+#
+#
+# @router.message(Registration.awaiting_custom_faculty_name)
+# async def process_custom_faculty_name(message: types.Message, state: FSMContext):
+#     await state.update_data(faculty=message.text)
+#     await message.answer(Text.GET_GROUP)
+#     await state.set_state(Registration.awaiting_study_group)
 
 
 @router.message(Registration.awaiting_study_group)
 async def process_study_group(message: types.Message, state: FSMContext):
-    group_name = message.text.strip().lower()
-    if group_name and group_name[0] not in ['б', 'с', 'м', 'а']:
+    group_name = message.text.strip()
+
+    # Закомментированная старая проверка
+    # if group_name and group_name[0].lower() not in ['б', 'с', 'м', 'а']:
+    #     await message.answer(
+    #         "Название учебной группы некорректно.\n"
+    #         "Первая буква должна быть одной из следующих: "
+    #         "б - бакалавриат, с - специалитет, м - магистратура, а - аспирантура."
+    #     )
+    #     return
+
+    # Новая, более строгая проверка с помощью регулярного выражения
+    if not re.match(r'^[БСМАбсма]\d{2}-\d{3}$', group_name):
         await message.answer(
-            "Название учебной группы некорректно.\n"
-            "Первая буква должна быть одной из следующих: "
-            "б - бакалавриат, с - специалитет, м - магистратура, а - аспирантура."
+            "Формат учебной группы некорректен.\n"
+            "Пожалуйста, введите название в формате, например, 'Б23-101', где:\n"
+            "• Первая буква: Б/С/М/А\n"
+            "• Далее 2 цифры, дефис и еще 3 цифры."
         )
         return
 
-    await state.update_data(study_group=message.text)
+    await state.update_data(study_group=group_name.upper())
     await message.answer(Text.GET_GENDER, reply_markup=inline.get_gender_inline_keyboard())
     await state.set_state(Registration.awaiting_gender)
 

@@ -291,24 +291,24 @@ async def get_rare_blood_donors(session: AsyncSession) -> list[dict]:
         for row in result
     ]
 
-async def get_top_faculties(session: AsyncSession) -> list[dict]:
-    """
-    Возвращает самые активные факультеты по количеству донаций.
-    Логика: Группировка донаций по факультетам пользователей из НИЯУ МИФИ.
-    """
-    stmt = (
-        select(User.faculty, func.count(Donation.id).label("donation_count"))
-        .join(Donation, User.id == Donation.user_id)
-        .where(User.university == "НИЯУ МИФИ", User.faculty != None)
-        .group_by(User.faculty)
-        .order_by(func.count(Donation.id).desc())
-    )
-
-    result = await session.execute(stmt)
-    return [
-        {"faculty_name": row.faculty, "donation_count": row.donation_count}
-        for row in result
-    ]
+# async def get_top_faculties(session: AsyncSession) -> list[dict]:
+#     """
+#     Возвращает самые активные факультеты по количеству донаций.
+#     Логика: Группировка донаций по факультетам пользователей из НИЯУ МИФИ.
+#     """
+#     stmt = (
+#         select(User.faculty, func.count(Donation.id).label("donation_count"))
+#         .join(Donation, User.id == Donation.user_id)
+#         .where(User.university == "НИЯУ МИФИ", User.faculty != None)
+#         .group_by(User.faculty)
+#         .order_by(func.count(Donation.id).desc())
+#     )
+#
+#     result = await session.execute(stmt)
+#     return [
+#         {"faculty_name": row.faculty, "donation_count": row.donation_count}
+#         for row in result
+#     ]
 
 async def get_dkm_candidates(session: AsyncSession) -> list[dict]:
     """

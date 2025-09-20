@@ -321,7 +321,7 @@ async def lifespan(app: FastAPI):
     
     await create_db_and_tables()
     await initial_admin_and_texts_setup()
-    scheduler = setup_scheduler(bot, async_session_maker, storage)
+    scheduler = setup_scheduler(bot, async_session_maker, storage, dp["ngrok_url"])
     scheduler.start()
     asyncio.create_task(dp.start_polling(bot, dp=dp))
     yield

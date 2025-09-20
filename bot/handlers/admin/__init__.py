@@ -8,7 +8,7 @@ from bot.utils.text_messages import Text
 
 from .user_management import router as user_management_router
 from .event_management import router as event_management_router
-from .merch_management import router as merch_management_router
+# from .merch_management import router as merch_management_router
 from .mailing import router as mailing_router
 from .system import router as system_router
 from .analytics import router as analytics_router
@@ -20,7 +20,7 @@ admin_router = Router(name="admin")
 admin_router.include_routers(
     user_management_router,
     event_management_router,
-    merch_management_router,
+    # merch_management_router,
     mailing_router,
     system_router,
     analytics_router,

@@ -17,6 +17,7 @@ def get_category_keyboard():
     """Клавиатура для выбора категории пользователя."""
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="Студент", callback_data="category_student"))
+    builder.row(InlineKeyboardButton(text="Сотрудник", callback_data="category_employee"))
     builder.row(InlineKeyboardButton(text="Внешний донор", callback_data="category_external"))
     return builder.as_markup()
 
@@ -31,7 +32,7 @@ def get_student_main_menu(viewer_role: str = 'student'):
     builder = InlineKeyboardBuilder()
     builder.row(InlineKeyboardButton(text="📅 Записаться на донацию", callback_data="register_donation"))
     builder.row(InlineKeyboardButton(text="👤 Мой профиль", callback_data="my_profile"))
-    builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))
+    # builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))
     builder.row(InlineKeyboardButton(text="ℹ️ Полезная информация", callback_data="info"))
     builder.row(InlineKeyboardButton(text="⚕️ Мои медотводы", callback_data="my_waivers"))
     builder.row(InlineKeyboardButton(text="❓ Задать вопрос организаторам", callback_data="ask_question"))
@@ -75,13 +76,13 @@ def get_university_keyboard():
     return builder.as_markup()
 
 
-def get_faculties_keyboard():
-    faculties = ["ИИКС", "ФИБС", "ИнЯз", "ИФТЭБ", "БМТ", "ИФИБ"]
-    builder = InlineKeyboardBuilder()
-    for faculty in faculties:
-        builder.row(InlineKeyboardButton(text=faculty, callback_data=f"faculty_{faculty}"))
-    builder.row(InlineKeyboardButton(text="Другой/Не из списка", callback_data="faculty_Other"))
-    return builder.as_markup()
+# def get_faculties_keyboard():
+#     faculties = ["ИИКС", "ФИБС", "ИнЯз", "ИФТЭБ", "БМТ", "ИФИБ"]
+#     builder = InlineKeyboardBuilder()
+#     for faculty in faculties:
+#         builder.row(InlineKeyboardButton(text=faculty, callback_data=f"faculty_{faculty}"))
+#     builder.row(InlineKeyboardButton(text="Другой/Не из списка", callback_data="faculty_Other"))
+#     return builder.as_markup()
 
 def get_gender_inline_keyboard():
     builder = InlineKeyboardBuilder()
@@ -151,8 +152,8 @@ def get_admin_panel_keyboard(viewer_role: str):
     builder.row(InlineKeyboardButton(text="🗓️ Упр. мероприятиями", callback_data="admin_manage_events"))
     builder.row(types.InlineKeyboardButton(text="❓ Вопросы от пользователей", callback_data="admin_answer_questions"))
     builder.row(InlineKeyboardButton(text="👥 Упр. пользователями", callback_data="admin_manage_users"))
-    builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
-    builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
+    # builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
+    # builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
     builder.row(InlineKeyboardButton(text="📣 Рассылки", callback_data="admin_mailing"))
     builder.row(InlineKeyboardButton(text="📊 Аналитика", callback_data="admin_analytics"))
     builder.row(InlineKeyboardButton(text="📝 Ред. инфо-разделы", callback_data="admin_edit_info"))
@@ -194,7 +195,7 @@ def get_reports_menu_keyboard():
     builder.row(InlineKeyboardButton(text="Топ-20 доноров", callback_data="report_top_donors"))
     # builder.row(InlineKeyboardButton(text="Доноры редкой крови", callback_data="report_rare_blood_donors"))
     # II. Отчеты по сегментации и демографии
-    builder.row(InlineKeyboardButton(text="Самые активные факультеты", callback_data="report_top_faculties"))
+    # builder.row(InlineKeyboardButton(text="Самые активные факультеты", callback_data="report_top_faculties"))
     builder.row(InlineKeyboardButton(text="Кандидаты в регистр ДКМ", callback_data="report_dkm_candidates"))
     # III. Отчеты по конверсии и эффективности
     builder.row(InlineKeyboardButton(text="Потеря после опросника", callback_data="report_survey_dropoff"))
@@ -430,8 +431,9 @@ def get_mailing_audience_keyboard(current_filters: dict = None):
     # builder.row(InlineKeyboardButton(text="-"*25, callback_data="ignore")) 
 
     # builder.row(InlineKeyboardButton(text="🎓 По ВУЗу", callback_data="mail_audience_type_university"))
-    builder.row(InlineKeyboardButton(text="🏛️ По факультету", callback_data="mail_audience_type_faculty"))
-    
+    # builder.row(InlineKeyboardButton(text="🏛️ По факультету", callback_data="mail_audience_type_faculty"))
+    builder.row(InlineKeyboardButton(text="По участникам мероприятия", callback_data="mail_to_event_participants"))
+
     if current_filters:
         builder.row(InlineKeyboardButton(text="✅ Готово (перейти к подтверждению)", callback_data="mail_audience_finish"))
 
@@ -571,9 +573,9 @@ def get_my_waivers_keyboard(user_waivers_exist: bool):
     Показывает кнопку удаления, только если у пользователя есть созданные им отводы.
     """
     builder = InlineKeyboardBuilder()
-    builder.row(InlineKeyboardButton(text="➕ Установить временный отвод", callback_data="set_user_waiver"))
-    if user_waivers_exist:
-        builder.row(InlineKeyboardButton(text="➖ Отменить свой отвод", callback_data="cancel_user_waiver"))
+    # builder.row(InlineKeyboardButton(text="➕ Установить временный отвод", callback_data="set_user_waiver"))
+    # if user_waivers_exist:
+    #     builder.row(InlineKeyboardButton(text="➖ Отменить свой отвод", callback_data="cancel_user_waiver"))
     builder.row(InlineKeyboardButton(text="↩️ В главное меню", callback_data="back_to_main_menu"))
     return builder.as_markup()
 

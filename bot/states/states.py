@@ -23,11 +23,11 @@ class EventCreation(StatesGroup):
     awaiting_limit = State()
     awaiting_confirmation = State()
 
-class MerchCreation(StatesGroup):
-    awaiting_photo = State()
-    awaiting_name = State()
-    awaiting_description = State()
-    awaiting_price = State()
+# class MerchCreation(StatesGroup):
+#     awaiting_photo = State()
+#     awaiting_name = State()
+#     awaiting_description = State()
+#     awaiting_price = State()
 
 class PointsChange(StatesGroup):
     awaiting_user_id = State()
@@ -41,9 +41,10 @@ class ManualWaiver(StatesGroup):
 class Mailing(StatesGroup):
     awaiting_message_text = State()
     awaiting_media = State()
-    awaiting_audience_type = State()     
-    awaiting_audience_value = State()   
-    awaiting_audience_choice = State()   
+    awaiting_audience_type = State()
+    awaiting_audience_value = State()
+    awaiting_audience_choice = State()
+    awaiting_event_choice = State()
     awaiting_confirmation = State()
 class AdminManagement(StatesGroup):
     awaiting_user_to_promote = State()
@@ -63,9 +64,9 @@ class EventEditing(StatesGroup):
     awaiting_new_value = State()
     awaiting_new_blood_center_name_for_edit = State()
     
-class MerchEditing(StatesGroup):
-    choosing_field = State()
-    awaiting_new_value = State()
+# class MerchEditing(StatesGroup):
+#     choosing_field = State()
+#     awaiting_new_value = State()
     
 class UserSearch(StatesGroup):
     awaiting_query = State()

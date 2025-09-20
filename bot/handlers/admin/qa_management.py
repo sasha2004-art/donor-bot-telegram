@@ -53,7 +53,7 @@ async def start_answering_question(callback: types.CallbackQuery, state: FSMCont
     )
     await callback.answer()
 
-@router.message(AnswerQuestion.awaiting_answer)
+@router.message(AnswerQuestion.awaiting_answer, F.text)
 async def process_answer(message: types.Message, state: FSMContext, session: AsyncSession, bot: Bot):
     data = await state.get_data()
     question_id = data.get("question_id")
