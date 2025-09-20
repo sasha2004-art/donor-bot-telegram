@@ -118,7 +118,7 @@ async def create_users(session: AsyncSession) -> list[User]:
             faculty=faculty,
             study_group=f"{random.choice(['Б', 'М', 'С'])}{random.randint(20, 23)}-{random.randint(101, 515)}",
             gender=gender,
-            points=random.randint(0, 500),
+            # points=random.randint(0, 500),
             role=role,
             is_blocked=False,
             created_at=faker.date_time_between(start_date="-2y", end_date="now"),
@@ -151,7 +151,7 @@ async def create_events(session: AsyncSession) -> tuple[list[Event], list[Event]
             latitude=55.807920,
             longitude=37.491633,
             donation_type=random.choice(DONATION_TYPES),
-            points_per_donation=random.randint(100, 250),
+            # points_per_donation=random.randint(100, 250),
             participant_limit=random.randint(50, 100),
             is_active=False,
             registration_is_open=False,
@@ -167,7 +167,7 @@ async def create_events(session: AsyncSession) -> tuple[list[Event], list[Event]
             latitude=55.649917,
             longitude=37.662128,
             donation_type=random.choice(DONATION_TYPES),
-            points_per_donation=random.randint(100, 250),
+            # points_per_donation=random.randint(100, 250),
             participant_limit=random.randint(60, 120),
             is_active=True,
             registration_is_open=True,
@@ -198,7 +198,7 @@ async def create_registrations_and_donations(
                 )
                 if not event.is_active and random.random() < DONATION_CHANCE:
                     donation_date = event.event_datetime.date()
-                    points_awarded = event.points_per_donation
+                    points_awarded = 0 # event.points_per_donation
                     donations_to_create.append(
                         Donation(
                             user_id=user.id,
@@ -208,9 +208,9 @@ async def create_registrations_and_donations(
                             points_awarded=points_awarded,
                         )
                     )
-                    user_updates[user.id] = (
-                        user_updates.get(user.id, 0) + points_awarded
-                    )
+                    # user_updates[user.id] = (
+                    #     user_updates.get(user.id, 0) + points_awarded
+                    # )
                     days_waiver = (
                         (90 if user.gender == "female" else 60)
                         if event.donation_type == "whole_blood"
@@ -232,12 +232,12 @@ async def create_registrations_and_donations(
     session.add_all(waivers_to_create)
     await session.commit()
 
-    logger.info(f"Обновление баллов для {len(user_updates)} пользователей...")
-    for user_id, points in user_updates.items():
-        user = await session.get(User, user_id)
-        if user:
-            user.points += points
-    await session.commit()
+    # logger.info(f"Обновление баллов для {len(user_updates)} пользователей...")
+    # for user_id, points in user_updates.items():
+    #     user = await session.get(User, user_id)
+    #     if user:
+    #         user.points += points
+    # await session.commit()
     logger.info("Регистрации и донации успешно созданы.")
 
 

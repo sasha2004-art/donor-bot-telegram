@@ -102,6 +102,7 @@ async def change_user_role(session: AsyncSession, user_id: int, new_role: str):
     await session.commit()
 
 
+'''
 async def add_points_to_user(
     session: AsyncSession, user_id: int, points: int, reason: str
 ):
@@ -109,6 +110,7 @@ async def add_points_to_user(
     user.points += points
     # log: # Здесь можно добавить логирование этой операции в отдельную таблицу
     await session.commit()
+'''
 
 
 async def block_user(session: AsyncSession, user_id: int, admin_id: int, reason: str):
@@ -175,27 +177,29 @@ async def get_blood_center_by_id(
     return await session.get(BloodCenter, blood_center_id)
 
 
+'''
 # --- Merch Management ---
-# async def create_merch_item(session: AsyncSession, data: dict) -> MerchItem:
-#     item = MerchItem(**data)
-#     session.add(item)
-#     await session.commit()
-#     return item
+async def create_merch_item(session: AsyncSession, data: dict) -> MerchItem:
+    item = MerchItem(**data)
+    session.add(item)
+    await session.commit()
+    return item
 
 # --- Order Processing ---
-# async def get_pending_orders(session: AsyncSession) -> list[MerchOrder]:
-#     stmt = select(MerchOrder).options(joinedload(MerchOrder.user), joinedload(MerchOrder.item)).where(MerchOrder.status == 'pending_pickup').order_by(MerchOrder.order_date)
-#     result = await session.execute(stmt)
-#     return result.scalars().all()
-#
-# async def complete_order(session: AsyncSession, order_id: int, admin_id: int):
-#     order = await session.get(MerchOrder, order_id)
-#     if order:
-#         order.status = 'completed'
-#         order.completed_by_admin_id = admin_id
-#         order.completion_date = datetime.datetime.now()
-#         # log: # Можно добавить логирование подтверждения заказа
-#         await session.commit()
+async def get_pending_orders(session: AsyncSession) -> list[MerchOrder]:
+    stmt = select(MerchOrder).options(joinedload(MerchOrder.user), joinedload(MerchOrder.item)).where(MerchOrder.status == 'pending_pickup').order_by(MerchOrder.order_date)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+async def complete_order(session: AsyncSession, order_id: int, admin_id: int):
+    order = await session.get(MerchOrder, order_id)
+    if order:
+        order.status = 'completed'
+        order.completed_by_admin_id = admin_id
+        order.completion_date = datetime.datetime.now()
+        # log: # Можно добавить логирование подтверждения заказа
+        await session.commit()
+'''
 
 
 # --- Manual Waiver ---
@@ -283,34 +287,36 @@ async def deactivate_event(session: AsyncSession, event_id: int):
     await session.commit()
 
 
-# async def get_all_merch_items(session: AsyncSession) -> list[MerchItem]:
-#     stmt = select(MerchItem).order_by(MerchItem.id)
-#     result = await session.execute(stmt)
-#     return result.scalars().all()
-#
-# async def get_merch_item_by_id(session: AsyncSession, item_id: int) -> MerchItem | None:
-#     return await session.get(MerchItem, item_id)
-#
-# async def update_merch_item_field(session: AsyncSession, item_id: int, field_name: str, new_value: any):
-#     if not hasattr(MerchItem, field_name):
-#         return
-#     stmt = update(MerchItem).where(MerchItem.id == item_id).values({field_name: new_value})
-#     await session.execute(stmt)
-#     await session.commit()
-#
-# async def toggle_merch_item_availability(session: AsyncSession, item_id: int) -> bool:
-#     item = await session.get(MerchItem, item_id)
-#     if not item:
-#         return False
-#     item.is_available = not item.is_available
-#     await session.commit()
-#     return item.is_available
-#
-# async def delete_merch_item_by_id(session: AsyncSession, item_id: int):
-#     item = await session.get(MerchItem, item_id)
-#     if item:
-#         await session.delete(item)
-#         await session.commit()
+'''
+async def get_all_merch_items(session: AsyncSession) -> list[MerchItem]:
+    stmt = select(MerchItem).order_by(MerchItem.id)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+async def get_merch_item_by_id(session: AsyncSession, item_id: int) -> MerchItem | None:
+    return await session.get(MerchItem, item_id)
+
+async def update_merch_item_field(session: AsyncSession, item_id: int, field_name: str, new_value: any):
+    if not hasattr(MerchItem, field_name):
+        return
+    stmt = update(MerchItem).where(MerchItem.id == item_id).values({field_name: new_value})
+    await session.execute(stmt)
+    await session.commit()
+
+async def toggle_merch_item_availability(session: AsyncSession, item_id: int) -> bool:
+    item = await session.get(MerchItem, item_id)
+    if not item:
+        return False
+    item.is_available = not item.is_available
+    await session.commit()
+    return item.is_available
+
+async def delete_merch_item_by_id(session: AsyncSession, item_id: int):
+    item = await session.get(MerchItem, item_id)
+    if item:
+        await session.delete(item)
+        await session.commit()
+'''
 
 
 # --- Export Functions ---

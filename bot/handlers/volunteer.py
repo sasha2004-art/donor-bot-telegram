@@ -134,11 +134,12 @@ async def process_donation_confirmation(
         return
 
     try:
-        points_awarded, waiver_end_date = (
+        waiver_end_date = (
             await event_requests.confirm_donation_transaction(
                 session, donor, registration
             )
         )
+        points_awarded = 0
 
         success_text = Text.DONATION_CONFIRM_SUCCESS.format(
             donor_name=donor.full_name,
@@ -148,7 +149,7 @@ async def process_donation_confirmation(
         await callback.message.edit_text(
             success_text,
             reply_markup=inline.get_volunteer_panel_keyboard(),
-            parse_mode="HTML",  # ИСПРАВЛЕНО
+            parse_mode="HTML",
         )
     except Exception as e:
         logger.error(

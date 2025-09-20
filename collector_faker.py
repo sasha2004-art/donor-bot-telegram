@@ -103,7 +103,7 @@ async def create_new_users(session: AsyncSession) -> list[User]:
             faculty=faculty,
             study_group=f"{random.choice(['Б', 'М'])}{random.randint(20, 24)}-{random.randint(101, 515)}",
             gender=gender,
-            points=0,
+            # points=0,
             role="student",
             is_blocked=False,
             created_at=faker.date_time_between(start_date="-1y", end_date="now"),
@@ -141,7 +141,7 @@ async def create_past_events(
             location=f"Место проведения архивной акции №{i+1}",
             blood_center_id=center.id,
             donation_type=random.choice(DONATION_TYPES),
-            points_per_donation=random.randint(100, 200),
+            # points_per_donation=random.randint(100, 200),
             participant_limit=random.randint(40, 80),
             is_active=False,
             registration_is_open=False,
@@ -184,7 +184,7 @@ async def create_history_for_new_users(
     user_updates = {}
 
     def create_donation_entry(user, event, donation_date):
-        points = event.points_per_donation
+        points = 0 # event.points_per_donation
         donations_to_add.append(
             Donation(
                 user_id=user.id,
@@ -210,7 +210,7 @@ async def create_history_for_new_users(
                 created_by="system",
             )
         )
-        user_updates[user.id] = user_updates.get(user.id, 0) + points
+        # user_updates[user.id] = user_updates.get(user.id, 0) + points
 
     # 1. "Однодневки": 1 донация > 6 месяцев назад
     logger.info(f"Обработка {len(segments['churn'])} доноров-однодневок...")
@@ -276,11 +276,11 @@ async def create_history_for_new_users(
 
     session.add_all(donations_to_add + waivers_to_add + surveys_to_add)
 
-    logger.info(f"Обновление баллов для {len(user_updates)} пользователей...")
-    for user_id, points in user_updates.items():
-        user = await session.get(User, user_id)
-        if user:
-            user.points += points
+    # logger.info(f"Обновление баллов для {len(user_updates)} пользователей...")
+    # for user_id, points in user_updates.items():
+    #     user = await session.get(User, user_id)
+    #     if user:
+    #         user.points += points
 
     await session.commit()
     logger.info("История донаций успешно сгенерирована.")

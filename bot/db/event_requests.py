@@ -232,14 +232,14 @@ async def find_specific_registration(
 
 async def confirm_donation_transaction(
     session: AsyncSession, user: User, registration: EventRegistration
-) -> tuple[int, datetime.date]:
-    """Проводит транзакцию подтверждения донации: начисляет баллы, создает медотвод."""
+) -> datetime.date:
+    """Проводит транзакцию подтверждения донации: создает медотвод."""
     event = await session.get(Event, registration.event_id)
     event_date = (
         event.event_datetime.date()
     )  # Получаем только дату для донации и медотвода
 
-    points_to_award = event.points_per_donation
+    points_to_award = 0 #event.points_per_donation
 
     # Создаем запись о донации
     donation = Donation(
@@ -269,12 +269,12 @@ async def confirm_donation_transaction(
     )
 
     # Обновляем пользователя и регистрацию
-    user.points += points_to_award
+    # user.points += points_to_award
     registration.status = "attended"
 
     session.add_all([donation, waiver])
     await session.commit()
-    return points_to_award, end_date
+    return end_date
 
 
 async def cancel_registration(
