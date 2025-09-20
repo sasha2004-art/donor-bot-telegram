@@ -6,8 +6,8 @@ from sqlalchemy import select, update, or_, func, String, delete, distinct, extr
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from .models import (
-    User, Event, EventRegistration, Donation, MedicalWaiver, 
-    MerchItem, MerchOrder, UserBlock, BloodCenter
+    User, Event, EventRegistration, Donation, MedicalWaiver,
+    UserBlock, BloodCenter
 )
 from .models import Feedback
 from .event_requests import find_specific_registration, add_event_registration, confirm_donation_transaction
@@ -131,26 +131,26 @@ async def get_blood_center_by_id(session: AsyncSession, blood_center_id: int) ->
     return await session.get(BloodCenter, blood_center_id)
 
 # --- Merch Management ---
-async def create_merch_item(session: AsyncSession, data: dict) -> MerchItem:
-    item = MerchItem(**data)
-    session.add(item)
-    await session.commit()
-    return item
+# async def create_merch_item(session: AsyncSession, data: dict) -> MerchItem:
+#     item = MerchItem(**data)
+#     session.add(item)
+#     await session.commit()
+#     return item
 
 # --- Order Processing ---
-async def get_pending_orders(session: AsyncSession) -> list[MerchOrder]:
-    stmt = select(MerchOrder).options(joinedload(MerchOrder.user), joinedload(MerchOrder.item)).where(MerchOrder.status == 'pending_pickup').order_by(MerchOrder.order_date)
-    result = await session.execute(stmt)
-    return result.scalars().all()
-
-async def complete_order(session: AsyncSession, order_id: int, admin_id: int):
-    order = await session.get(MerchOrder, order_id)
-    if order:
-        order.status = 'completed'
-        order.completed_by_admin_id = admin_id
-        order.completion_date = datetime.datetime.now()
-        # log: # Можно добавить логирование подтверждения заказа
-        await session.commit()
+# async def get_pending_orders(session: AsyncSession) -> list[MerchOrder]:
+#     stmt = select(MerchOrder).options(joinedload(MerchOrder.user), joinedload(MerchOrder.item)).where(MerchOrder.status == 'pending_pickup').order_by(MerchOrder.order_date)
+#     result = await session.execute(stmt)
+#     return result.scalars().all()
+#
+# async def complete_order(session: AsyncSession, order_id: int, admin_id: int):
+#     order = await session.get(MerchOrder, order_id)
+#     if order:
+#         order.status = 'completed'
+#         order.completed_by_admin_id = admin_id
+#         order.completion_date = datetime.datetime.now()
+#         # log: # Можно добавить логирование подтверждения заказа
+#         await session.commit()
 
 # --- Manual Waiver ---
 async def create_manual_waiver(session: AsyncSession, user_id: int, end_date: datetime.date, reason: str, admin_id: int):
@@ -217,34 +217,34 @@ async def deactivate_event(session: AsyncSession, event_id: int):
     await session.execute(stmt)
     await session.commit()
 
-async def get_all_merch_items(session: AsyncSession) -> list[MerchItem]:
-    stmt = select(MerchItem).order_by(MerchItem.id)
-    result = await session.execute(stmt)
-    return result.scalars().all()
-
-async def get_merch_item_by_id(session: AsyncSession, item_id: int) -> MerchItem | None:
-    return await session.get(MerchItem, item_id)
-
-async def update_merch_item_field(session: AsyncSession, item_id: int, field_name: str, new_value: any):
-    if not hasattr(MerchItem, field_name):
-        return
-    stmt = update(MerchItem).where(MerchItem.id == item_id).values({field_name: new_value})
-    await session.execute(stmt)
-    await session.commit()
-
-async def toggle_merch_item_availability(session: AsyncSession, item_id: int) -> bool:
-    item = await session.get(MerchItem, item_id)
-    if not item:
-        return False
-    item.is_available = not item.is_available
-    await session.commit()
-    return item.is_available
-
-async def delete_merch_item_by_id(session: AsyncSession, item_id: int):
-    item = await session.get(MerchItem, item_id)
-    if item:
-        await session.delete(item)
-        await session.commit()
+# async def get_all_merch_items(session: AsyncSession) -> list[MerchItem]:
+#     stmt = select(MerchItem).order_by(MerchItem.id)
+#     result = await session.execute(stmt)
+#     return result.scalars().all()
+#
+# async def get_merch_item_by_id(session: AsyncSession, item_id: int) -> MerchItem | None:
+#     return await session.get(MerchItem, item_id)
+#
+# async def update_merch_item_field(session: AsyncSession, item_id: int, field_name: str, new_value: any):
+#     if not hasattr(MerchItem, field_name):
+#         return
+#     stmt = update(MerchItem).where(MerchItem.id == item_id).values({field_name: new_value})
+#     await session.execute(stmt)
+#     await session.commit()
+#
+# async def toggle_merch_item_availability(session: AsyncSession, item_id: int) -> bool:
+#     item = await session.get(MerchItem, item_id)
+#     if not item:
+#         return False
+#     item.is_available = not item.is_available
+#     await session.commit()
+#     return item.is_available
+#
+# async def delete_merch_item_by_id(session: AsyncSession, item_id: int):
+#     item = await session.get(MerchItem, item_id)
+#     if item:
+#         await session.delete(item)
+#         await session.commit()
 
 # --- Export Functions ---
 async def get_all_data_for_export(session: AsyncSession) -> dict:
@@ -254,8 +254,8 @@ async def get_all_data_for_export(session: AsyncSession) -> dict:
         "event_registrations": (await session.execute(select(EventRegistration))).scalars().all(),
         "donations": (await session.execute(select(Donation))).scalars().all(),
         "medical_waivers": (await session.execute(select(MedicalWaiver))).scalars().all(),
-        "merch_items": (await session.execute(select(MerchItem))).scalars().all(),
-        "merch_orders": (await session.execute(select(MerchOrder))).scalars().all(),
+        # "merch_items": (await session.execute(select(MerchItem))).scalars().all(),
+        # "merch_orders": (await session.execute(select(MerchOrder))).scalars().all(),
         "user_blocks": (await session.execute(select(UserBlock))).scalars().all(),
     }
     return data_to_export

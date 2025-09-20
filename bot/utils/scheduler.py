@@ -50,7 +50,7 @@ async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngro
 
             for reg in registrations:
                 user = reg.user
-                if not user:
+                if not user or reg.survey_reminder_sent:
                     continue
 
                 has_recent_survey = await user_requests.check_recent_survey(session, user.id)
@@ -73,8 +73,11 @@ async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngro
                         text="Напоминаем, что вы записаны на донацию через 3 дня. Пожалуйста, пройдите короткий опрос на противопоказания.",
                         reply_markup=builder.as_markup()
                     )
+                    reg.survey_reminder_sent = True
                 except Exception as e:
                     logger.error(f"Failed to send survey reminder to user {user.id} for event {event.id}. Error: {e}", exc_info=True)
+
+        await session.commit()
 
 async def send_reminders_for_interval(
     bot: Bot, 

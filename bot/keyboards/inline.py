@@ -3,7 +3,7 @@
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from bot.db.models import MerchItem, InfoText
+from bot.db.models import InfoText # MerchItem
 from aiogram.fsm.context import FSMContext
 
 # --- КЛАВИАТУРЫ (без изменений до get_user_management_keyboard) ---

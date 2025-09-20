@@ -66,6 +66,7 @@ class EventRegistration(Base):
     event_id: Mapped[int] = mapped_column(ForeignKey('events.id'), index=True)
     status: Mapped[str] = mapped_column(String(50), default='registered')
     registration_date: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    survey_reminder_sent: Mapped[bool] = mapped_column(Boolean, default=False, server_default='f', nullable=False)
 
     user: Mapped["User"] = relationship(back_populates="registrations")
     event: Mapped["Event"] = relationship(back_populates="registrations")
