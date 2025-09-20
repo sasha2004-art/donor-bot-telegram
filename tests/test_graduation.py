@@ -1,6 +1,7 @@
 import pytest
 from bot.utils.graduation import calculate_graduation_year
 
+
 @pytest.mark.parametrize(
     "group, expected_year",
     [

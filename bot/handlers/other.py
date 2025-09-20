@@ -6,6 +6,7 @@ from bot.utils.text_messages import Text
 
 router = Router()
 
+
 @router.message()
 async def handle_unknown_message(message: types.Message, session: AsyncSession):
     user = await user_requests.get_user_by_tg_id(session, message.from_user.id)

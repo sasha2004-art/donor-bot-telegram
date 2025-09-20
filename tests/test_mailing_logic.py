@@ -19,8 +19,14 @@ users_data = [
     {"id": 4, "university": "МГУ", "faculty": "ВМК", "role": "student"},
     {"id": 5, "university": "МГУ", "faculty": "ВМК", "role": "admin"},
     {"id": 6, "university": "Другой ВУЗ", "faculty": None, "role": "student"},
-    {"id": 7, "university": "НИЯУ МИФИ", "faculty": "Администрация", "role": "main_admin"},
+    {
+        "id": 7,
+        "university": "НИЯУ МИФИ",
+        "faculty": "Администрация",
+        "role": "main_admin",
+    },
 ]
+
 
 # --- ИЗМЕНЕНИЕ ФИКСТУРЫ ---
 @pytest.fixture(scope="function", autouse=True)
@@ -31,14 +37,21 @@ async def setup_users(session: AsyncSession):
     """
     users_to_add = [
         User(
-            id=u["id"], phone_number=f"+{u['id']}", telegram_id=u["id"],
-            full_name=f"User {u['id']}", university=u["university"],
-            faculty=u.get("faculty"), role=u.get("role")
-        ) for u in users_data
+            id=u["id"],
+            phone_number=f"+{u['id']}",
+            telegram_id=u["id"],
+            full_name=f"User {u['id']}",
+            university=u["university"],
+            faculty=u.get("faculty"),
+            role=u.get("role"),
+        )
+        for u in users_data
     ]
     session.add_all(users_to_add)
     await session.commit()
-    yield # Передаем управление тесту
+    yield  # Передаем управление тесту
+
+
 # --- КОНЕЦ ИЗМЕНЕНИЙ В ФИКСТУРЕ ---
 
 
@@ -46,28 +59,26 @@ async def setup_users(session: AsyncSession):
     "filters, expected_user_ids",
     [
         # --- ПРОСТЫЕ ФИЛЬТРЫ ---
-        ({}, {1, 2, 3, 4, 5, 6, 7}), # Фильтр 'all' или пустой -> все пользователи
+        ({}, {1, 2, 3, 4, 5, 6, 7}),  # Фильтр 'all' или пустой -> все пользователи
         ({"role": "all"}, {1, 2, 3, 4, 5, 6, 7}),
         ({"university": "НИЯУ МИФИ"}, {1, 2, 3, 7}),
         ({"faculty": "ИИКС"}, {1, 2}),
-        
         # --- РОЛЕВЫЕ ФИЛЬТРЫ ---
-        ({"role": "volunteers"}, {3, 5, 7}), # volunteer, admin, main_admin
-        ({"role": "admins"}, {5, 7}), # admin, main_admin
-        
+        ({"role": "volunteers"}, {3, 5, 7}),  # volunteer, admin, main_admin
+        ({"role": "admins"}, {5, 7}),  # admin, main_admin
         # --- КОМПЛЕКСНЫЕ ФИЛЬТРЫ С РОЛЯМИ ---
         # Сценарий 1: Волонтеры из НИЯУ МИФИ
         ({"role": "volunteers", "university": "НИЯУ МИФИ"}, {3, 7}),
-
         # Сценарий 3: Волонтеры с факультета ВМК -> только пользователь 5 (т.к. админ - тоже волонтер)
         ({"role": "volunteers", "faculty": "ВМК"}, {5}),
-
         # Сценарий 5: Админы из НИЯУ МИФИ
         ({"role": "admins", "university": "НИЯУ МИФИ"}, {7}),
-    ]
+    ],
 )
 # --- ВАЖНО: УБИРАЕМ session ИЗ ПАРАМЕТРОВ ТЕСТА, Т.К. ОН НЕ ИСПОЛЬЗУЕТСЯ НАПРЯМУЮ, А НУЖЕН ФИКСТУРЕ ---
-async def test_get_users_for_mailing_complex_with_roles(session: AsyncSession, filters, expected_user_ids):
+async def test_get_users_for_mailing_complex_with_roles(
+    session: AsyncSession, filters, expected_user_ids
+):
     """
     Тестирует функцию фильтрации пользователей с комплексными фильтрами, включая роли.
     """
@@ -75,6 +86,7 @@ async def test_get_users_for_mailing_complex_with_roles(session: AsyncSession, f
     users = await user_requests.get_users_for_mailing(session, filters)
     actual_user_ids = {user.id for user in users}
     assert actual_user_ids == expected_user_ids
+
 
 # Этот тест также будет использовать фикстуру setup_users
 async def test_get_distinct_faculties(session: AsyncSession):

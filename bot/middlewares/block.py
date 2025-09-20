@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from bot.db import user_requests
 
+
 class BlockUserMiddleware(BaseMiddleware):
     def __init__(self):
         super().__init__()
@@ -26,7 +27,9 @@ class BlockUserMiddleware(BaseMiddleware):
 
         if user and user.is_blocked:
             if isinstance(event, Message):
-                await event.answer("❌ Вы заблокированы и не можете использовать этого бота.")
+                await event.answer(
+                    "❌ Вы заблокированы и не можете использовать этого бота."
+                )
             elif isinstance(event, CallbackQuery):
                 await event.answer("❌ Вы заблокированы.", show_alert=True)
             return  # Прерываем дальнейшую обработку

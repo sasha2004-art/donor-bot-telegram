@@ -51,7 +51,7 @@ async def setup_database() -> AsyncGenerator[None, None]:
     """
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-    
+
     yield  # В этот момент выполняются все тесты
 
     async with test_engine.begin() as conn:
@@ -89,7 +89,8 @@ async def session(setup_database: None) -> AsyncGenerator[AsyncSession, None]:
         # Откатываем транзакцию и закрываем соединение в любом случае
         await transaction.rollback()
         await connection.close()
-        
+
+
 @pytest.fixture(scope="session")
 def session_pool() -> async_sessionmaker:
     """

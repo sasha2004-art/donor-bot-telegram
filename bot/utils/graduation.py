@@ -1,6 +1,7 @@
 import datetime
 from bot.db import user_requests
 
+
 def calculate_graduation_year(group: str) -> int | None:
     """
     Calculates the graduation year based on the group name.
@@ -12,15 +13,15 @@ def calculate_graduation_year(group: str) -> int | None:
     group_upper = group.upper()
 
     try:
-        if group_upper.startswith('Б') or group_upper.startswith('B'):
+        if group_upper.startswith("Б") or group_upper.startswith("B"):
             # Бакалавриат - 4 года
             year_prefix = int(group_upper[1:3])
             return 2000 + year_prefix + 4
-        elif group_upper.startswith('С') or group_upper.startswith('C'):
+        elif group_upper.startswith("С") or group_upper.startswith("C"):
             # Специалитет - 5 лет
             year_prefix = int(group_upper[1:3])
             return 2000 + year_prefix + 5
-        elif group_upper.startswith('М') or group_upper.startswith('M'):
+        elif group_upper.startswith("М") or group_upper.startswith("M"):
             # Магистратура - 2 года
             year_prefix = int(group_upper[1:3])
             return 2000 + year_prefix + 2
@@ -28,6 +29,7 @@ def calculate_graduation_year(group: str) -> int | None:
         return None
 
     return None
+
 
 async def check_graduation_status(bot, session):
     """
@@ -43,5 +45,5 @@ async def check_graduation_status(bot, session):
                     user.telegram_id,
                     "Здравствуйте! По нашим данным, вы уже выпустились. "
                     "Пожалуйста, обновите свои данные, чтобы продолжать "
-                    "пользоваться ботом."
+                    "пользоваться ботом.",
                 )

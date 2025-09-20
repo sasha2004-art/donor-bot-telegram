@@ -8,7 +8,14 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import joinedload
-from bot.db.models import EventRegistration, MedicalWaiver, Event, User, Donation, NoShowReport
+from bot.db.models import (
+    EventRegistration,
+    MedicalWaiver,
+    Event,
+    User,
+    Donation,
+    NoShowReport,
+)
 from bot.utils.text_messages import Text
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.context import FSMContext
@@ -22,7 +29,9 @@ from bot.db import event_requests, user_requests
 logger = logging.getLogger(__name__)
 
 
-async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngrok_url: str):
+async def send_survey_reminders(
+    bot: Bot, session_pool: async_sessionmaker, ngrok_url: str
+):
     """Отправляет напоминание о прохождении опросника за 3 дня до мероприятия."""
     reminder_date = datetime.date.today() + datetime.timedelta(days=3)
     logger.info(f"Running survey reminder job for events on {reminder_date}.")
@@ -32,7 +41,14 @@ async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngro
         return
 
     async with session_pool() as session:
-        stmt = select(Event).where(func.date(Event.event_datetime) == reminder_date, Event.is_active == True).options(joinedload(Event.registrations).joinedload(EventRegistration.user))
+        stmt = (
+            select(Event)
+            .where(
+                func.date(Event.event_datetime) == reminder_date,
+                Event.is_active == True,
+            )
+            .options(joinedload(Event.registrations).joinedload(EventRegistration.user))
+        )
         events_result = await session.execute(stmt)
         events = events_result.scalars().unique().all()
 
@@ -43,17 +59,23 @@ async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngro
         for event in events:
             registrations = event.registrations
             if not registrations:
-                logger.info(f"No registrations for event {event.id} to send survey reminders.")
+                logger.info(
+                    f"No registrations for event {event.id} to send survey reminders."
+                )
                 continue
 
-            logger.info(f"Found {len(registrations)} users for event {event.id} to send survey reminders.")
+            logger.info(
+                f"Found {len(registrations)} users for event {event.id} to send survey reminders."
+            )
 
             for reg in registrations:
                 user = reg.user
                 if not user or reg.survey_reminder_sent:
                     continue
 
-                has_recent_survey = await user_requests.check_recent_survey(session, user.id)
+                has_recent_survey = await user_requests.check_recent_survey(
+                    session, user.id
+                )
                 if has_recent_survey:
                     logger.info(f"User {user.id} has a recent survey, skipping.")
                     continue
@@ -63,35 +85,42 @@ async def send_survey_reminders(bot: Bot, session_pool: async_sessionmaker, ngro
                     webapp_url = f"{ngrok_url}/webapp/index.html?v={cache_buster}&gender={user.gender}"
 
                     builder = InlineKeyboardBuilder()
-                    builder.row(types.InlineKeyboardButton(
-                        text="📝 Пройти опрос",
-                        web_app=WebAppInfo(url=webapp_url)
-                    ))
+                    builder.row(
+                        types.InlineKeyboardButton(
+                            text="📝 Пройти опрос", web_app=WebAppInfo(url=webapp_url)
+                        )
+                    )
 
                     await bot.send_message(
                         chat_id=user.telegram_id,
                         text="Напоминаем, что вы записаны на донацию через 3 дня. Пожалуйста, пройдите короткий опрос на противопоказания.",
-                        reply_markup=builder.as_markup()
+                        reply_markup=builder.as_markup(),
                     )
                     reg.survey_reminder_sent = True
                 except Exception as e:
-                    logger.error(f"Failed to send survey reminder to user {user.id} for event {event.id}. Error: {e}", exc_info=True)
+                    logger.error(
+                        f"Failed to send survey reminder to user {user.id} for event {event.id}. Error: {e}",
+                        exc_info=True,
+                    )
 
         await session.commit()
 
+
 async def send_reminders_for_interval(
-    bot: Bot, 
-    session_pool: async_sessionmaker, 
-    time_from_now: datetime.timedelta, 
+    bot: Bot,
+    session_pool: async_sessionmaker,
+    time_from_now: datetime.timedelta,
     time_window: datetime.timedelta,
-    text_template: str
+    text_template: str,
 ):
     now = datetime.datetime.now()
     start_time = now + time_from_now
     end_time = start_time + time_window
 
-    logger.info(f"Running reminder job. Checking for events between {start_time.strftime('%Y-%m-%d %H:%M')} and {end_time.strftime('%Y-%m-%d %H:%M')}")
-    
+    logger.info(
+        f"Running reminder job. Checking for events between {start_time.strftime('%Y-%m-%d %H:%M')} and {end_time.strftime('%Y-%m-%d %H:%M')}"
+    )
+
     async with session_pool() as session:
         stmt = (
             select(EventRegistration)
@@ -100,56 +129,69 @@ async def send_reminders_for_interval(
                 and_(
                     Event.event_datetime >= start_time,
                     Event.event_datetime < end_time,
-                    EventRegistration.status == 'registered',
-                    Event.is_active == True
+                    EventRegistration.status == "registered",
+                    Event.is_active == True,
                 )
             )
             .options(
-                joinedload(EventRegistration.user),
-                joinedload(EventRegistration.event)
+                joinedload(EventRegistration.user), joinedload(EventRegistration.event)
             )
         )
-        
+
         results = await session.execute(stmt)
         registrations = results.scalars().unique().all()
-        
+
         if not registrations:
             logger.info("No registrations found for this time window.")
             return
-            
+
         logger.info(f"Found {len(registrations)} registrations to notify.")
         success_count = 0
         for reg in registrations:
             try:
                 user = reg.user
                 event = reg.event
-                
+
                 if not user or not event:
                     continue
 
-                formatted_datetime = event.event_datetime.strftime('%d.%m.%Y %H:%M')
-                
+                formatted_datetime = event.event_datetime.strftime("%d.%m.%Y %H:%M")
+
                 safe_event_name = Text.escape_html(event.name)
                 safe_datetime = Text.escape_html(formatted_datetime)
-                location_link = Text.format_location_link(event.location, event.latitude, event.longitude)
-                
+                location_link = Text.format_location_link(
+                    event.location, event.latitude, event.longitude
+                )
+
                 text = text_template.format(
                     event_name=safe_event_name,
                     event_datetime=safe_datetime,
-                    event_location=location_link
+                    event_location=location_link,
                 )
 
-                await bot.send_message(chat_id=user.telegram_id, text=text, parse_mode="HTML")
+                await bot.send_message(
+                    chat_id=user.telegram_id, text=text, parse_mode="HTML"
+                )
                 success_count += 1
             except Exception as e:
-                logger.error(f"Failed to send reminder to user {reg.user_id} for event {reg.event_id}. Error: {e}", exc_info=True)
-        
-        logger.info(f"Job finished. Sent {success_count}/{len(registrations)} reminders.")
+                logger.error(
+                    f"Failed to send reminder to user {reg.user_id} for event {reg.event_id}. Error: {e}",
+                    exc_info=True,
+                )
 
-async def send_post_donation_feedback(bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage):
+        logger.info(
+            f"Job finished. Sent {success_count}/{len(registrations)} reminders."
+        )
+
+
+async def send_post_donation_feedback(
+    bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage
+):
     """Инициирует опрос обратной связи через день после донации."""
     yesterday = datetime.date.today() - datetime.timedelta(days=1)
-    logger.info(f"Running post-donation feedback job for donations made on {yesterday}.")
+    logger.info(
+        f"Running post-donation feedback job for donations made on {yesterday}."
+    )
 
     async with session_pool() as session:
         stmt = (
@@ -157,7 +199,7 @@ async def send_post_donation_feedback(bot: Bot, session_pool: async_sessionmaker
             .options(joinedload(Donation.user))
             .where(
                 Donation.donation_date == yesterday,
-                Donation.feedback_requested == False
+                Donation.feedback_requested == False,
             )
         )
         results = await session.execute(stmt)
@@ -167,47 +209,52 @@ async def send_post_donation_feedback(bot: Bot, session_pool: async_sessionmaker
             logger.info("No donations found for feedback request.")
             return
 
-        logger.info(f"Found {len(donations_to_process)} donations for feedback request.")
+        logger.info(
+            f"Found {len(donations_to_process)} donations for feedback request."
+        )
         success_count = 0
         for donation in donations_to_process:
             try:
                 user = donation.user
                 if not user:
                     continue
-                
-                storage_key = StorageKey(bot_id=bot.id, chat_id=user.telegram_id, user_id=user.telegram_id)
-                state = FSMContext(storage=storage, key=storage_key)               
-                
+
+                storage_key = StorageKey(
+                    bot_id=bot.id, chat_id=user.telegram_id, user_id=user.telegram_id
+                )
+                state = FSMContext(storage=storage, key=storage_key)
+
                 await state.set_state(FeedbackSurvey.awaiting_well_being)
                 await state.update_data(
-                    event_id=donation.event_id,
-                    donation_id=donation.id
+                    event_id=donation.event_id, donation_id=donation.id
                 )
-                
+
                 await bot.send_message(
                     chat_id=user.telegram_id,
                     text=Text.FEEDBACK_START,
-                    reply_markup=inline.get_feedback_well_being_keyboard()
+                    reply_markup=inline.get_feedback_well_being_keyboard(),
                 )
-                
+
                 donation.feedback_requested = True
                 success_count += 1
             except Exception as e:
-                logger.error(f"Failed to initiate feedback survey for user {donation.user_id}. Error: {e}", exc_info=True)
-        
+                logger.error(
+                    f"Failed to initiate feedback survey for user {donation.user_id}. Error: {e}",
+                    exc_info=True,
+                )
+
         if success_count > 0:
             await session.commit()
-        
-        logger.info(f"Post-donation feedback job finished. Initiated {success_count}/{len(donations_to_process)} surveys.")
+
+        logger.info(
+            f"Post-donation feedback job finished. Initiated {success_count}/{len(donations_to_process)} surveys."
+        )
 
 
 async def check_waiver_expirations(bot: Bot, session_pool: async_sessionmaker):
     yesterday = datetime.date.today() - datetime.timedelta(days=1)
     async with session_pool() as session:
-        stmt = (
-            select(MedicalWaiver.user_id)
-            .where(MedicalWaiver.end_date == yesterday)
-        )
+        stmt = select(MedicalWaiver.user_id).where(MedicalWaiver.end_date == yesterday)
         results = await session.execute(stmt)
         user_ids_to_notify = results.scalars().unique().all()
         if not user_ids_to_notify:
@@ -217,9 +264,13 @@ async def check_waiver_expirations(bot: Bot, session_pool: async_sessionmaker):
         users = users_result.scalars().all()
         for user in users:
             try:
-                await bot.send_message(chat_id=user.telegram_id, text=Text.WAIVER_EXPIRED_NOTIFICATION)
+                await bot.send_message(
+                    chat_id=user.telegram_id, text=Text.WAIVER_EXPIRED_NOTIFICATION
+                )
             except Exception as e:
-                logger.error(f"Failed to send waiver expiration notification to user {user.id}. Error: {e}")
+                logger.error(
+                    f"Failed to send waiver expiration notification to user {user.id}. Error: {e}"
+                )
 
 
 async def check_student_status(bot: Bot, session_pool: async_sessionmaker):
@@ -238,96 +289,127 @@ async def check_student_status(bot: Bot, session_pool: async_sessionmaker):
                     if current_year - study_group_year > 4:
                         await bot.send_message(
                             chat_id=student.telegram_id,
-                            text="Привет! Похоже, ты уже выпустился из университета. Пожалуйста, обнови свои данные."
+                            text="Привет! Похоже, ты уже выпустился из университета. Пожалуйста, обнови свои данные.",
                         )
             except Exception as e:
-                logger.error(f"Failed to check student status for user {student.id}. Error: {e}", exc_info=True)
+                logger.error(
+                    f"Failed to check student status for user {student.id}. Error: {e}",
+                    exc_info=True,
+                )
 
-def setup_scheduler(bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage, ngrok_url: str) -> AsyncIOScheduler:
+
+def setup_scheduler(
+    bot: Bot, session_pool: async_sessionmaker, storage: MemoryStorage, ngrok_url: str
+) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
 
     scheduler.add_job(
         send_no_show_surveys,
-        trigger='cron',
-        hour='*',
-        minute=5, 
-        args=[bot, session_pool]
+        trigger="cron",
+        hour="*",
+        minute=5,
+        args=[bot, session_pool],
     )
 
     scheduler.add_job(
         send_reminders_for_interval,
-        trigger='cron',
+        trigger="cron",
         hour=10,
         minute=0,
-        args=[bot, session_pool, datetime.timedelta(days=7), datetime.timedelta(days=1), Text.REMINDER_WEEK]
+        args=[
+            bot,
+            session_pool,
+            datetime.timedelta(days=7),
+            datetime.timedelta(days=1),
+            Text.REMINDER_WEEK,
+        ],
     )
     scheduler.add_job(
         send_reminders_for_interval,
-        trigger='cron',
+        trigger="cron",
         hour=10,
         minute=30,
-        args=[bot, session_pool, datetime.timedelta(days=3), datetime.timedelta(days=1), Text.REMINDER_3_DAYS]
+        args=[
+            bot,
+            session_pool,
+            datetime.timedelta(days=3),
+            datetime.timedelta(days=1),
+            Text.REMINDER_3_DAYS,
+        ],
     )
     scheduler.add_job(
         send_reminders_for_interval,
-        trigger='cron',
+        trigger="cron",
         hour=10,
         minute=30,
-        args=[bot, session_pool, datetime.timedelta(days=1), datetime.timedelta(days=1), Text.REMINDER_1_DAY]
+        args=[
+            bot,
+            session_pool,
+            datetime.timedelta(days=1),
+            datetime.timedelta(days=1),
+            Text.REMINDER_1_DAY,
+        ],
     )
     scheduler.add_job(
         send_reminders_for_interval,
-        trigger='cron',
-        hour='*',
+        trigger="cron",
+        hour="*",
         minute=0,
-        args=[bot, session_pool, datetime.timedelta(hours=2), datetime.timedelta(hours=1), Text.REMINDER_2_HOURS]
+        args=[
+            bot,
+            session_pool,
+            datetime.timedelta(hours=2),
+            datetime.timedelta(hours=1),
+            Text.REMINDER_2_HOURS,
+        ],
     )
     scheduler.add_job(
         check_waiver_expirations,
-        trigger='cron',
+        trigger="cron",
         hour=9,
         minute=0,
-        args=[bot, session_pool]
+        args=[bot, session_pool],
     )
-    
+
     scheduler.add_job(
         send_post_donation_feedback,
-        trigger='cron',
+        trigger="cron",
         hour=11,
         minute=0,
-        args=[bot, session_pool, storage]
+        args=[bot, session_pool, storage],
     )
-    
+
     scheduler.add_job(
         send_survey_reminders,
-        trigger='cron',
+        trigger="cron",
         hour=11,
         minute=0,
-        args=[bot, session_pool, ngrok_url]
+        args=[bot, session_pool, ngrok_url],
     )
 
     scheduler.add_job(
         check_student_status,
-        trigger='cron',
+        trigger="cron",
         month=9,
         day=1,
         hour=12,
         minute=0,
-        args=[bot, session_pool]
+        args=[bot, session_pool],
     )
 
     scheduler.add_job(
         check_graduation_status,
-        trigger='cron',
+        trigger="cron",
         month=9,
         day=1,
         hour=13,
         minute=0,
-        args=[bot, session_pool]
+        args=[bot, session_pool],
     )
 
     logger.info("Scheduler configured successfully with 8 jobs.")
     return scheduler
+
 
 async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):
     """Находит неявившихся участников и отправляет им опрос."""
@@ -336,7 +418,9 @@ async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):
     start_window = now - datetime.timedelta(hours=4)
     end_window = now - datetime.timedelta(hours=3)
 
-    logger.info(f"Running no-show survey job for events ended between {start_window} and {end_window}")
+    logger.info(
+        f"Running no-show survey job for events ended between {start_window} and {end_window}"
+    )
 
     async with session_pool() as session:
         stmt = (
@@ -344,13 +428,15 @@ async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):
             .join(Event)
             .where(
                 Event.event_datetime.between(start_window, end_window),
-                EventRegistration.status == 'registered'
+                EventRegistration.status == "registered",
             )
-            .options(joinedload(EventRegistration.user), joinedload(EventRegistration.event))
+            .options(
+                joinedload(EventRegistration.user), joinedload(EventRegistration.event)
+            )
         )
         results = await session.execute(stmt)
         no_shows = results.scalars().unique().all()
-        
+
         if not no_shows:
             logger.info("No participants found for no-show survey.")
             return
@@ -361,25 +447,28 @@ async def send_no_show_surveys(bot: Bot, session_pool: async_sessionmaker):
                 reasons = {
                     "medical": "Медотвод (болезнь)",
                     "personal": "Личные причины",
-                    "forgot": "Забыл(а) / не захотел(а)"
+                    "forgot": "Забыл(а) / не захотел(а)",
                 }
                 for key, text in reasons.items():
-                    builder.row(types.InlineKeyboardButton(
-                        text=text,
-                        callback_data=f"no_show_{reg.event_id}_{key}"
-                    ))
-                
+                    builder.row(
+                        types.InlineKeyboardButton(
+                            text=text, callback_data=f"no_show_{reg.event_id}_{key}"
+                        )
+                    )
+
                 await bot.send_message(
                     chat_id=reg.user.telegram_id,
                     text=(
                         f"Добрый день! Вы были записаны на донорскую акцию «{reg.event.name}», "
                         "но не отметились у волонтеров. Подскажите, пожалуйста, почему не получилось прийти?"
                     ),
-                    reply_markup=builder.as_markup()
+                    reply_markup=builder.as_markup(),
                 )
                 # Меняем статус, чтобы не отправлять повторно
-                reg.status = 'no_show_survey_sent'
+                reg.status = "no_show_survey_sent"
             except Exception as e:
-                logger.error(f"Failed to send no-show survey to user {reg.user_id}: {e}")
-        
+                logger.error(
+                    f"Failed to send no-show survey to user {reg.user_id}: {e}"
+                )
+
         await session.commit()

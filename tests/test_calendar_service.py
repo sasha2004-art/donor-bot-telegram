@@ -3,6 +3,7 @@ import datetime
 from bot.utils.calendar_service import generate_ics_file
 from bot.db.models import Event
 
+
 def test_generate_ics_file():
     """
     Тестирует корректность генерации содержимого .ics файла.
@@ -13,9 +14,9 @@ def test_generate_ics_file():
     mock_event = Event(
         id=123,
         name="Тестовое мероприятие",
-        event_datetime=datetime.datetime(2025, 10, 26, 14, 0, 0), 
+        event_datetime=datetime.datetime(2025, 10, 26, 14, 0, 0),
         location="НИЯУ МИФИ, Каширское ш. 31",
-        donation_type="plasma" 
+        donation_type="plasma",
     )
 
     # 2. Генерация контента

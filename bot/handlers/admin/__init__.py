@@ -8,6 +8,7 @@ from bot.utils.text_messages import Text
 
 from .user_management import router as user_management_router
 from .event_management import router as event_management_router
+
 # from .merch_management import router as merch_management_router
 from .mailing import router as mailing_router
 from .system import router as system_router
@@ -28,7 +29,8 @@ admin_router.include_routers(
     qa_management_router,
 )
 
-@admin_router.callback_query(F.data == "admin_panel", RoleFilter('admin'))
+
+@admin_router.callback_query(F.data == "admin_panel", RoleFilter("admin"))
 async def show_admin_panel(callback: types.CallbackQuery, session: AsyncSession):
     """
     Отображает главную панель администратора.
@@ -42,13 +44,17 @@ async def show_admin_panel(callback: types.CallbackQuery, session: AsyncSession)
     await callback.message.edit_text(
         text=Text.ADMIN_PANEL_HEADER,
         reply_markup=inline.get_admin_panel_keyboard(viewer.role),
-        parse_mode="HTML"
+        parse_mode="HTML",
     )
     await callback.answer()
-    
+
 
 @admin_router.callback_query(F.data == "admin_manage_events")
 async def manage_events_panel_test(callback: types.CallbackQuery):
 
-    await callback.message.edit_text(Text.ADMIN_EVENTS_HEADER, reply_markup=inline.get_events_management_keyboard(), parse_mode="HTML")
+    await callback.message.edit_text(
+        Text.ADMIN_EVENTS_HEADER,
+        reply_markup=inline.get_events_management_keyboard(),
+        parse_mode="HTML",
+    )
     await callback.answer()
