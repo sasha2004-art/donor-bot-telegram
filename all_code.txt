@@ -1,20 +1,38 @@
 ==================== СТРУКТУРА ПРОЕКТА ====================
 
 Mihi donor bot/
-├── .pytest_cache/
-│   ├── v/
-│   │   └── cache/
-│   │       ├── lastfailed
-│   │       └── nodeids
-│   ├── .gitignore
-│   ├── CACHEDIR.TAG
-│   └── README.md
 ├── alembic/
+├── bot/
+├── donor_bot_telegram.egg-info/
+├── tests/
+├── webapp/
+├── .env
+├── .env.example
+├── .gitignore
+├── Dockerfile
+├── README.md
+├── alembic.ini
+├── collector_faker.py
+├── docker-compose.yml
+├── main.py
+├── populate_db.py
+├── pyproject.toml
+├── pytest.ini
+├── requirements-dev.txt
+├── requirements.txt
+└── verify.py
 │   ├── README
 │   ├── env.py
 │   └── script.py.mako
-├── bot/
 │   ├── db/
+│   ├── filters/
+│   ├── handlers/
+│   ├── keyboards/
+│   ├── middlewares/
+│   ├── states/
+│   ├── utils/
+│   ├── __init__.py
+│   └── config_reader.py
 │   │   ├── __init__.py
 │   │   ├── admin_requests.py
 │   │   ├── analytics_requests.py
@@ -26,10 +44,14 @@ Mihi donor bot/
 │   │   ├── qa_management.py
 │   │   ├── question_requests.py
 │   │   └── user_requests.py
-│   ├── filters/
 │   │   └── role.py
-│   ├── handlers/
 │   │   ├── admin/
+│   │   ├── __init__.py
+│   │   ├── common.py
+│   │   ├── main_admin.py
+│   │   ├── other.py
+│   │   ├── student.py
+│   │   └── volunteer.py
 │   │   │   ├── __init__.py
 │   │   │   ├── analytics.py
 │   │   │   ├── event_management.py
@@ -40,23 +62,13 @@ Mihi donor bot/
 │   │   │   ├── system.py
 │   │   │   └── user_management.py
 │   │   ├── __init__.py
-│   │   ├── common.py
-│   │   ├── main_admin.py
-│   │   ├── other.py
-│   │   ├── student.py
-│   │   └── volunteer.py
-│   ├── keyboards/
-│   │   ├── __init__.py
 │   │   ├── inline.py
 │   │   └── reply.py
-│   ├── middlewares/
 │   │   ├── __init__.py
 │   │   ├── block.py
 │   │   └── db.py
-│   ├── states/
 │   │   ├── __init__.py
 │   │   └── states.py
-│   ├── utils/
 │   │   ├── __init__.py
 │   │   ├── analytics_service.py
 │   │   ├── calendar_service.py
@@ -65,14 +77,10 @@ Mihi donor bot/
 │   │   ├── qr_service.py
 │   │   ├── scheduler.py
 │   │   └── text_messages.py
-│   ├── __init__.py
-│   └── config_reader.py
-├── donor_bot_telegram.egg-info/
 │   ├── PKG-INFO
 │   ├── SOURCES.txt
 │   ├── dependency_links.txt
 │   └── top_level.txt
-├── tests/
 │   ├── __init__.py
 │   ├── conftest.py
 │   ├── test_admin_fsm.py
@@ -95,22 +103,7 @@ Mihi donor bot/
 │   ├── test_survey_logic.py
 │   ├── test_utils.py
 │   └── test_volunteer_fsm.py
-├── webapp/
 │   └── index.html
-├── .env
-├── .env.example
-├── .gitignore
-├── Dockerfile
-├── README.md
-├── alembic.ini
-├── collector_faker.py
-├── docker-compose.yml
-├── main.py
-├── populate_db.py
-├── pyproject.toml
-├── pytest.ini
-├── requirements-dev.txt
-└── requirements.txt
 
 ==================== СОДЕРЖИМОЕ ФАЙЛОВ ====================
 
@@ -143,6 +136,9 @@ venv/
 *.pyc
 db_volume/
 all_code.txt
+.pytest_cache
+.mypy_cache
+logs/
 
 --- КОНЕЦ ФАЙЛА: .gitignore ---
 
@@ -1278,9 +1274,7 @@ async def clear_database(session: AsyncSession):
         EventRegistration,
         MedicalWaiver,
         UserBlock,
-        MerchOrder,
         Event,
-        MerchItem,
         User,
     ]
     for table in tables_to_clear:
@@ -1530,28 +1524,166 @@ httpx==0.27.0
 pytest
 pytest-asyncio
 aiosqlite
+pytest-mock
 
 --- КОНЕЦ ФАЙЛА: requirements.txt ---
 
---- НАЧАЛО ФАЙЛА: .pytest_cache/.gitignore ---
+--- НАЧАЛО ФАЙЛА: verify.py ---
 
-# Created by pytest automatically.
-*
+import argparse
+import subprocess
+import sys
 
---- КОНЕЦ ФАЙЛА: .pytest_cache/.gitignore ---
 
---- НАЧАЛО ФАЙЛА: .pytest_cache/README.md ---
+# --- Утилиты для цветного вывода ---
+class Colors:
+    """Класс для цветного вывода в терминале."""
 
-# pytest cache directory #
+    HEADER = "\033[95m"
+    OKBLUE = "\033[94m"
+    OKGREEN = "\033[92m"
+    WARNING = "\033[93m"
+    FAIL = "\033[91m"
+    ENDC = "\033[0m"
+    BOLD = "\033[1m"
+    UNDERLINE = "\033[4m"
 
-This directory contains data from the pytest's cache plugin,
-which provides the `--lf` and `--ff` options, as well as the `cache` fixture.
 
-**Do not** commit this to version control.
+# --- Пути для проверки ---
+PATHS_TO_CHECK = "bot/ tests/"
 
-See [the docs](https://docs.pytest.org/en/stable/how-to/cache.html) for more information.
+# --- Конфигурация проверок ---
+CHECKS = [
+    (
+        "1. Formatting (black)",
+        f"docker-compose run --rm bot black --check {PATHS_TO_CHECK}",
+    ),
+    (
+        "2. Import Sorting (isort)",
+        f"docker-compose run --rm bot isort --check-only {PATHS_TO_CHECK}",
+    ),
+    (
+        "3. Linting (flake8)",
+        f"docker-compose run --rm bot flake8 {PATHS_TO_CHECK} --count --ignore=E501,W503 --show-source --statistics",
+    ),
+    (
+        "4. Static Type Checking (mypy)",
+        f"docker-compose run --rm bot mypy {PATHS_TO_CHECK}",
+    ),
+    (
+        "5. Code Security (bandit)",
+        "docker-compose run --rm bot bandit -c pyproject.toml -r bot/",
+    ),
+    (
+        "6. Unit Tests (pytest)",
+        "docker-compose run --rm bot pytest",
+    ),
+]
 
---- КОНЕЦ ФАЙЛА: .pytest_cache/README.md ---
+# --- Команды для ИСПРАВЛЕНИЯ кода ---
+FIXES = [
+    (
+        "1. Auto-formatting (black)",
+        f"docker-compose run --rm bot black {PATHS_TO_CHECK}",
+    ),
+    (
+        "2. Auto-sorting imports (isort)",
+        f"docker-compose run --rm bot isort {PATHS_TO_CHECK}",
+    ),
+]
+
+
+def run_command(title: str, command: str, check_mode=True) -> bool:
+    """Запускает одну команду и возвращает True в случае успеха."""
+    print(f"\n{Colors.HEADER}--- {title} ---{Colors.ENDC}")
+    print(f"{Colors.OKBLUE}COMMAND: {command}{Colors.ENDC}")
+
+    # Используем shell=True для удобства, но это безопасно, т.к. команды формируются внутри скрипта
+    result = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="ignore",
+        shell=True,
+    )
+
+    if check_mode and result.returncode != 0:
+        print(f"{Colors.FAIL}❌ FAILED{Colors.ENDC}")
+        print(result.stdout)
+        print(result.stderr)
+        return False
+    else:
+        status_color = Colors.OKGREEN if result.returncode == 0 else Colors.WARNING
+        status_text = "PASSED" if result.returncode == 0 else "DONE (with issues)"
+
+        print(f"{status_color}✅ {status_text}{Colors.ENDC}")
+        # Показываем вывод для тестов и для команд, которые что-то исправляют
+        if not check_mode or "pytest" in command or result.stdout:
+            print(result.stdout)
+        return True
+
+
+def run_flow(title: str, commands: list, check_mode: bool) -> bool:
+    """Запускает набор команд и возвращает True, если ВСЕ они прошли."""
+    action_word = "Verifying" if check_mode else "Fixing"
+    print(f"\n{Colors.BOLD}🚀 Starting: {action_word} {title}...{Colors.ENDC}")
+
+    all_passed = True
+    for cmd_title, command in commands:
+        if not run_command(cmd_title, command, check_mode=check_mode):
+            all_passed = False
+
+    return all_passed
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Run verification and fixing scripts for the Donor Bot project."
+    )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Automatically fix formatting and import sorting issues.",
+    )
+    args = parser.parse_args()
+
+    # Перед запуском проверок останавливаем любые запущенные контейнеры,
+    # чтобы избежать конфликтов имен.
+    print(
+        f"\n{Colors.OKBLUE}INFO: Stopping existing containers to avoid conflicts...{Colors.ENDC}"
+    )
+    subprocess.run(["docker-compose", "down"], capture_output=True, shell=False)
+
+    if args.fix:
+        run_flow("Code Style", FIXES, check_mode=False)
+        print(
+            f"\n{Colors.OKGREEN}Fixing process completed. Please run verification again to check the results.{Colors.ENDC}"
+        )
+        sys.exit(0)
+
+    # Запуск всех проверок
+    overall_success = run_flow("Code Quality", CHECKS, check_mode=True)
+
+    # После всех проверок снова останавливаем контейнеры
+    subprocess.run(["docker-compose", "down"], capture_output=True, shell=False)
+
+    if overall_success:
+        print(
+            f"\n{Colors.OKGREEN}{Colors.BOLD}🎉 All checks passed successfully!{Colors.ENDC}"
+        )
+        sys.exit(0)
+    else:
+        print(
+            f"\n{Colors.FAIL}{Colors.BOLD}❗️ Some checks failed. Please fix the errors and try again.{Colors.ENDC}"
+        )
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
+
+--- КОНЕЦ ФАЙЛА: verify.py ---
 
 --- НАЧАЛО ФАЙЛА: alembic/README ---
 
@@ -8575,17 +8707,21 @@ async def add_user_category(callback: types.CallbackQuery, state: FSMContext):
 async def add_user_university(callback: types.CallbackQuery, state: FSMContext):
     choice = callback.data.split("_", 1)[1]
     if choice == "mifi":
-        await state.update_data(university="НИЯУ МИФИ")
-        await callback.message.edit_text(
-            "<b>Шаг 5/8:</b> Выберите факультет.",
-            reply_markup=inline.get_faculties_keyboard(),
-        )
-        await state.set_state(AdminAddUser.awaiting_faculty)
+        await state.update_data(university="НИЯУ МИФИ", faculty="Не указан") # Добавляем заглушку для факультета
+        # Было: переход к выбору факультета
+        # await callback.message.edit_text(
+        #     "<b>Шаг 5/8:</b> Выберите факультет.",
+        #     reply_markup=inline.get_faculties_keyboard(),
+        # )
+        # await state.set_state(AdminAddUser.awaiting_faculty)
+
+        # Стало: переход к вводу группы
+        await callback.message.edit_text("<b>Шаг 5/7:</b> Введите номер группы (или 'нет').")
+        await state.set_state(AdminAddUser.awaiting_study_group)
     else:
         await callback.message.edit_text("<b>Шаг 5/8:</b> Введите название ВУЗа.")
         await state.set_state(AdminAddUser.awaiting_custom_university_name)
     await callback.answer()
-
 
 @router.message(AdminAddUser.awaiting_custom_university_name)
 async def add_user_custom_university(message: types.Message, state: FSMContext):
@@ -11774,7 +11910,6 @@ from bot.handlers.admin import user_management as user_handlers
 from bot.handlers.admin import event_management as event_handlers
 from bot.handlers.admin import mailing as mailing_handlers
 from bot.states.states import (
-    MerchCreation,
     BlockUser,
     ManualWaiver,
     EventEditing,
@@ -12075,9 +12210,9 @@ async def test_admin_add_user_fsm_full_path(session: AsyncSession):
     await user_handlers.add_user_university(
         MockCallbackQuery(data="university_mifi"), state
     )
-    assert await state.get_state() == AdminAddUser.awaiting_faculty
+    assert await state.get_state() == AdminAddUser.awaiting_study_group
 
-    await user_handlers.add_user_faculty(MockCallbackQuery(data="faculty_ИИКС"), state)
+    # await user_handlers.add_user_faculty(MockCallbackQuery(data="faculty_ИИКС"), state)
     assert await state.get_state() == AdminAddUser.awaiting_study_group
 
     await user_handlers.add_user_study_group(MockMessage(text="Б21-123"), state)
@@ -12095,7 +12230,7 @@ async def test_admin_add_user_fsm_full_path(session: AsyncSession):
     assert created_user is not None
     assert created_user.full_name == "Мануалов Мануал Мануалович"
     assert created_user.university == "НИЯУ МИФИ"
-    assert created_user.faculty == "ИИКС"
+    assert created_user.faculty == "Не указан"
     assert created_user.study_group == "Б21-123"
     assert created_user.telegram_id == -1
     assert created_user.consent_given is True
@@ -12782,9 +12917,7 @@ from bot.db.models import (
     EventRegistration,
     MedicalWaiver,
     Donation,
-    MerchItem,
     UserBlock,
-    MerchOrder,
     InfoText,
 )
 
@@ -14100,7 +14233,7 @@ def test_get_student_main_menu():
     student_buttons = get_button_texts(student_keyboard)
 
     assert "📅 Записаться на донацию" in student_buttons
-    assert "🎁 Магазин мерча" in student_buttons
+    # assert "🎁 Магазин мерча" in student_buttons
     assert "⚙️ Вернуться в админ-панель" not in student_buttons
 
     # Сценарий 2: Админ просматривает меню как студент
@@ -14809,7 +14942,7 @@ def test_setup_scheduler_adds_all_jobs():
         mock_storage = Mock()
 
         # 2. Выполнение: Вызываем тестируемую функцию
-        scheduler = setup_scheduler(mock_bot, mock_session_pool, mock_storage)
+        scheduler = setup_scheduler(mock_bot, mock_session_pool, mock_storage, "")
 
         # 3. Проверка
         # Проверяем, что экземпляр планировщика был создан
@@ -14821,7 +14954,7 @@ def test_setup_scheduler_adds_all_jobs():
 
         # Проверяем, что было добавлено правильное количество задач
         # В вашем коде 9 вызовов add_job
-        assert mock_scheduler_instance.add_job.call_count == 9
+        assert mock_scheduler_instance.add_job.call_count == 10
 
         # Проверяем параметры одной из ключевых задач (например, проверка истечения медотводов)
         found_waiver_job_call = False

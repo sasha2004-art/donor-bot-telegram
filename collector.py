@@ -10,6 +10,7 @@ OUTPUT_FILENAME = "all_code.txt"
 PROJECT_ROOT = "."
 
 # Папки, которые нужно полностью исключить из сканирования
+# os.walk будет избегать заходить в них, что значительно ускоряет работу
 EXCLUDE_DIRS = {
     "__pycache__",
     ".venv",
@@ -23,6 +24,11 @@ EXCLUDE_DIRS = {
     "db_volume",
     "redis_volume",
     "logs",
+    "media",  # Добавлено для примера
+    "static/admin", # Добавлено для примера
+    "mypy_cache",
+    ".mypy_cache",
+    ".pytest_cache",
 }
 
 # Файлы, которые нужно исключить по имени
@@ -32,7 +38,7 @@ EXCLUDE_FILES = {
     "requirements.lock",
     "pytest-logs.txt",
     ".DS_Store",
-    "package-lock.json",  # Часто слишком большой и не нужен для анализа
+    "package-lock.json",
     "yarn.lock",
 }
 
@@ -48,12 +54,13 @@ INCLUDE_EXTENSIONS = {
     ".mako",
     ".egg-info",
     ".json",
-    ".js",  # Добавим JS для frontend
+    ".js",
     ".jsx",
     ".ts",
     ".tsx",
     ".vue",
     ".css",
+    ".sh",
 }
 
 # Имена файлов, которые нужно включить, даже если их расширение не в списке
@@ -64,23 +71,23 @@ INCLUDE_FILENAMES = {
     "requirements.txt",
     "requirements-dev.txt",
     "README",
-    "package.json",  # Включаем package.json
+    "package.json",
 }
 
-### ИЗМЕНЕНИЕ 1: Добавляем "белый список" для папки frontend ###
-# Указываем, какие конкретно файлы и папки из frontend нужно включить.
-# Пути должны быть относительными и использовать '/' в качестве разделителя.
+# "Белый список" для папки frontend.
+# Если файл находится в `frontend/`, он будет включен, только если
+# его путь соответствует одному из этих шаблонов.
 FRONTEND_WHITELIST_PATHS = {
-    "frontend/src",  # Вся папка с исходным кодом
-    "frontend/public/index.html",  # Главный HTML файл
+    "frontend/src",
+    "frontend/public/index.html",
     "frontend/package.json",
     "frontend/Dockerfile",
-    "frontend/vite.config.js",  # Пример для Vite
-    "frontend/vue.config.js",  # Пример для Vue CLI
+    "frontend/vite.config.js",
+    "frontend/vue.config.js",
 }
 
 # Ограничение на максимальный размер файла для включения (в байтах)
-MAX_FILE_SIZE = 1 * 1024 * 1024
+MAX_FILE_SIZE = 1 * 1024 * 1024  # 1 MB
 
 # --- КОНЕЦ НАСТРОЕК ---
 
@@ -97,42 +104,35 @@ def is_binary(filepath: str) -> bool:
         return True
 
 
-def generate_tree_structure_corrected(root_dir: str) -> str:
+def generate_tree_structure_optimized(root_dir: str) -> str:
     """
-    Генерирует корректное строковое представление структуры проекта.
+    Оптимизированная функция для генерации структуры проекта с использованием os.walk.
     """
     print("Генерация структуры проекта...")
     abs_root_dir = os.path.abspath(root_dir)
     root_name = os.path.basename(abs_root_dir)
     tree_lines = [f"{root_name}/"]
+    
+    # Используем os.walk для эффективного обхода
+    for root, dirs, files in os.walk(abs_root_dir, topdown=True):
+        # Исключаем директории "на лету", чтобы os.walk в них не заходил
+        dirs[:] = [d for d in sorted(dirs) if d not in EXCLUDE_DIRS]
+        files = [f for f in sorted(files) if f not in EXCLUDE_FILES]
+        
+        level = root.replace(abs_root_dir, '').count(os.sep)
+        indent = '│   ' * level
+        
+        # Объединяем и сортируем для корректного отображения
+        items_to_process = dirs + files
+        
+        for i, name in enumerate(items_to_process):
+            connector = "└── " if i == len(items_to_process) - 1 else "├── "
+            path = os.path.join(root, name)
+            
+            # Добавляем слэш для директорий
+            suffix = "/" if os.path.isdir(path) else ""
+            tree_lines.append(f"{indent}{connector}{name}{suffix}")
 
-    def recurse_tree(directory: str, prefix: str = ""):
-        items = [
-            item
-            for item in os.listdir(directory)
-            if item not in EXCLUDE_DIRS and item not in EXCLUDE_FILES
-        ]
-
-        dirs = sorted([d for d in items if os.path.isdir(os.path.join(directory, d))])
-        files = sorted(
-            [f for f in items if not os.path.isdir(os.path.join(directory, f))]
-        )
-
-        all_items = dirs + files
-
-        for i, name in enumerate(all_items):
-            connector = "└── " if i == len(all_items) - 1 else "├── "
-            full_path = os.path.join(directory, name)
-
-            tree_lines.append(
-                f"{prefix}{connector}{name}{'/' if os.path.isdir(full_path) else ''}"
-            )
-
-            if os.path.isdir(full_path):
-                new_prefix = prefix + ("    " if i == len(all_items) - 1 else "│   ")
-                recurse_tree(full_path, new_prefix)
-
-    recurse_tree(abs_root_dir)
     return "\n".join(tree_lines)
 
 
@@ -144,26 +144,25 @@ def collect_project_files_content() -> str:
     all_content = []
 
     for root, dirs, files in os.walk(PROJECT_ROOT, topdown=True):
+        # Исключаем директории, чтобы не тратить время на их обход
         dirs[:] = [d for d in sorted(dirs) if d not in EXCLUDE_DIRS]
 
         for file in sorted(files):
-            file_path = os.path.join(root, file)
-            relative_path = os.path.relpath(file_path, PROJECT_ROOT).replace("\\", "/")
-
             if file in EXCLUDE_FILES:
                 continue
 
-            ### ИЗМЕНЕНИЕ 2: Новая, более гибкая логика включения файлов ###
+            file_path = os.path.join(root, file)
+            relative_path = os.path.relpath(file_path, PROJECT_ROOT).replace("\\", "/")
+
             def should_include(rel_path):
-                # Сначала проверяем, не в папке ли frontend наш файл
+                # Проверка для файлов внутри frontend
                 if rel_path.startswith("frontend/"):
-                    # Если да, то он должен соответствовать белому списку
                     for whitelist_path in FRONTEND_WHITELIST_PATHS:
                         if rel_path.startswith(whitelist_path):
-                            return True  # Нашли совпадение, включаем
-                    return False  # Нет совпадений в белом списке, пропускаем
+                            return True
+                    return False
 
-                # Если файл не в frontend, применяем общие правила
+                # Общие правила для всех остальных файлов
                 _, extension = os.path.splitext(rel_path)
                 if file in INCLUDE_FILENAMES:
                     return True
@@ -180,9 +179,7 @@ def collect_project_files_content() -> str:
                     print(f"  (-) Пропускается (слишком большой): {relative_path}")
                     continue
             except OSError:
-                print(
-                    f"  (-) Пропускается (не удалось получить размер): {relative_path}"
-                )
+                print(f"  (-) Пропускается (не удалось получить размер): {relative_path}")
                 continue
 
             if is_binary(file_path):
@@ -212,7 +209,8 @@ def collect_project_files_content() -> str:
 
 def main():
     """Главная функция для выполнения всех шагов."""
-    project_structure = generate_tree_structure_corrected(PROJECT_ROOT)
+    # Вызываем оптимизированную функцию для генерации дерева
+    project_structure = generate_tree_structure_optimized(PROJECT_ROOT)
     files_content = collect_project_files_content()
 
     print(f"\nЗапись результатов в файл '{OUTPUT_FILENAME}'...")

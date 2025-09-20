@@ -9,3 +9,6 @@ venv/
 *.pyc
 db_volume/
 all_code.txt
+.pytest_cache
+.mypy_cache
+logs/
