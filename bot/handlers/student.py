@@ -6,7 +6,7 @@ from aiogram import Router, F, types, Bot
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State
 from sqlalchemy.ext.asyncio import AsyncSession
-from bot.db import user_requests, event_requests, merch_requests
+from bot.db import user_requests, event_requests
 from bot.config_reader import config
 from bot.keyboards import inline
 from bot.utils.qr_service import generate_qr
@@ -20,7 +20,7 @@ from bot.utils.calendar_service import generate_ics_file
 from bot.db import info_requests
 
 from bot.states.states import UserWaiver, FeedbackSurvey, AskQuestion
-from bot.db import user_requests, event_requests, merch_requests, question_requests
+from bot.db import user_requests, event_requests, question_requests
 
 
 router = Router()
@@ -112,13 +112,11 @@ async def show_profile_data(callback: types.CallbackQuery, session: AsyncSession
 
     dkm_status = "Да" if user_obj.is_dkm_donor else "Нет"
 
-    user_obj.points = 0
     text = Text.PROFILE_DATA_TEMPLATE.format(
         full_name=Text.escape_html(user_obj.full_name),
         university=Text.escape_html(user_obj.university),
         faculty=Text.escape_html(user_obj.faculty or "Не указан"),
         study_group=Text.escape_html(user_obj.study_group or "Не указана"),
-        points=user_obj.points,
         total_donations=profile_data["total_donations"],
         next_date=profile_data["next_possible_donation"].strftime("%d.%m.%Y"),
         last_donation_info=last_donation_info,
@@ -146,11 +144,9 @@ async def show_donation_history(callback: types.CallbackQuery, session: AsyncSes
         donation_type_ru = Text.DONATION_TYPE_RU.get(
             donation.donation_type, donation.donation_type
         )
-        donation.points_awarded = 0
         history_text += Text.DONATION_HISTORY_ITEM.format(
             date=donation.donation_date.strftime("%d.%m.%Y"),
             type=Text.escape_html(donation_type_ru),
-            points=donation.points_awarded,
         )
     await callback.message.edit_text(
         history_text,

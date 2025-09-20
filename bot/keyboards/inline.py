@@ -3,7 +3,7 @@
 from aiogram import types
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.utils.keyboard import InlineKeyboardBuilder
-from bot.db.models import InfoText  # MerchItem
+from bot.db.models import InfoText
 from aiogram.fsm.context import FSMContext
 
 # --- КЛАВИАТУРЫ (без изменений до get_user_management_keyboard) ---
@@ -47,7 +47,7 @@ def get_student_main_menu(viewer_role: str = "student"):
         )
     )
     builder.row(InlineKeyboardButton(text="👤 Мой профиль", callback_data="my_profile"))
-    '''builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))'''
+    # builder.row(InlineKeyboardButton(text="🎁 Магазин мерча", callback_data="merch_store"))
     builder.row(
         InlineKeyboardButton(text="ℹ️ Полезная информация", callback_data="info")
     )
@@ -254,10 +254,8 @@ def get_admin_panel_keyboard(viewer_role: str):
             text="👥 Упр. пользователями", callback_data="admin_manage_users"
         )
     )
-    '''
-    builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
-    builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
-    '''
+    # builder.row(InlineKeyboardButton(text="🛍️ Упр. магазином", callback_data="admin_manage_merch"))
+    # builder.row(InlineKeyboardButton(text="📦 Обработка заказов", callback_data="admin_process_orders"))
     builder.row(InlineKeyboardButton(text="📣 Рассылки", callback_data="admin_mailing"))
     builder.row(
         InlineKeyboardButton(text="📊 Аналитика", callback_data="admin_analytics")
@@ -466,11 +464,11 @@ def get_user_management_keyboard(
         )
     )
 
-    '''builder.row(
-        InlineKeyboardButton(
-            text="+/- Баллы", callback_data=f"admin_points_{target_user_id}"
-        )
-    )'''
+    # builder.row(
+    #     InlineKeyboardButton(
+    #         text="+/- Баллы", callback_data=f"admin_points_{target_user_id}"
+    #     )
+    # )
 
     if target_user_role == "student":
         builder.row(
