@@ -36,7 +36,7 @@ async def test_get_churn_donors(session: AsyncSession):
         user_id=1,
         donation_date=datetime.date.today() - datetime.timedelta(days=200),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
 
     # Пользователь 2: донация была недавно
@@ -51,7 +51,7 @@ async def test_get_churn_donors(session: AsyncSession):
         user_id=2,
         donation_date=datetime.date.today() - datetime.timedelta(days=30),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
 
     # Пользователь 3: имеет несколько донаций
@@ -66,13 +66,13 @@ async def test_get_churn_donors(session: AsyncSession):
         user_id=3,
         donation_date=datetime.date.today() - datetime.timedelta(days=200),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
     donation3_2 = Donation(
         user_id=3,
         donation_date=datetime.date.today() - datetime.timedelta(days=30),
         donation_type="plasma",
-        points_awarded=10,
+        #points_awarded=10,
     )
 
     session.add_all(
@@ -102,13 +102,13 @@ async def test_get_lapsed_donors(session: AsyncSession):
         user_id=4,
         donation_date=datetime.date.today() - datetime.timedelta(days=300),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
     d1_2 = Donation(
         user_id=4,
         donation_date=datetime.date.today() - datetime.timedelta(days=400),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
 
     # Пользователь 2: последняя донация была недавно
@@ -123,13 +123,13 @@ async def test_get_lapsed_donors(session: AsyncSession):
         user_id=5,
         donation_date=datetime.date.today() - datetime.timedelta(days=30),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
     d2_2 = Donation(
         user_id=5,
         donation_date=datetime.date.today() - datetime.timedelta(days=60),
         donation_type="plasma",
-        points_awarded=10,
+        #points_awarded=10,
     )
 
     # Пользователь 3: подходит по датам, но имеет активный медотвод
@@ -144,13 +144,13 @@ async def test_get_lapsed_donors(session: AsyncSession):
         user_id=6,
         donation_date=datetime.date.today() - datetime.timedelta(days=300),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
     d3_2 = Donation(
         user_id=6,
         donation_date=datetime.date.today() - datetime.timedelta(days=400),
         donation_type="whole_blood",
-        points_awarded=10,
+        #points_awarded=10,
     )
     waiver = MedicalWaiver(
         user_id=6,
@@ -207,7 +207,7 @@ async def test_get_survey_dropoff(session: AsyncSession):
         event_datetime=datetime.datetime.now(),
         location="Центр крови",
         donation_type="d",
-        points_per_donation=1,
+        # points_per_donation=1,
         participant_limit=1,
     )
     session.add(event1)

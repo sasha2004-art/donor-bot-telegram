@@ -101,7 +101,7 @@ async def test_send_event_reminders_multi_interval(
         event_datetime=event_time,
         location="Test Location",
         donation_type="plasma",
-        points_per_donation=10,
+        # points_per_donation=10,
         participant_limit=5,
         is_active=True,
     )
@@ -166,21 +166,21 @@ async def test_send_post_donation_feedback(session: AsyncSession, session_pool, 
         event_id=1,
         donation_date=fixed_yesterday,
         donation_type="plasma",
-        points_awarded=1,
+        # points_awarded=1,
     )
     donation_to_ignore_old = Donation(
         user_id=user_to_ignore_old.id,
         event_id=2,
         donation_date=fixed_day_before,
         donation_type="plasma",
-        points_awarded=1,
+        # points_awarded=1,
     )
     donation_to_ignore_duplicate = Donation(
         user_id=user_to_ignore_duplicate.id,
         event_id=3,
         donation_date=fixed_yesterday,
         donation_type="plasma",
-        points_awarded=1,
+        # points_awarded=1,
         feedback_requested=True,
     )
     session.add_all(

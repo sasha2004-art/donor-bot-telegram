@@ -98,7 +98,7 @@ async def donor_user(session: AsyncSession) -> User:
         role="student",
         university="TestUni",
         gender="male",
-        points=0,
+        # points=0,
     )
     session.add(user)
     await session.commit()
@@ -112,7 +112,7 @@ async def today_event(session: AsyncSession) -> Event:
         event_datetime=datetime.datetime.now(),
         location="Тестовая локация",
         donation_type="whole_blood",
-        points_per_donation=50,
+        # points_per_donation=50,
         participant_limit=10,
     )
     session.add(event)
@@ -127,7 +127,7 @@ async def future_event(session: AsyncSession) -> Event:
         event_datetime=datetime.datetime.now() + datetime.timedelta(days=5),
         location="Другая локация",
         donation_type="plasma",
-        points_per_donation=20,
+        # points_per_donation=20,
         participant_limit=5,
     )
     session.add(event)
@@ -213,7 +213,7 @@ async def test_volunteer_fsm_happy_path(
         Text.DONATION_CONFIRM_SUCCESS.format(
             donor_name=donor_user.full_name,
             event_name=today_event.name,
-            points=today_event.points_per_donation,
+            # points=today_event.points_per_donation,
         ),
         reply_markup=mocker.ANY,  # Проверяем, что клавиатура была, не важен ее тип
         parse_mode="HTML",
@@ -223,7 +223,7 @@ async def test_volunteer_fsm_happy_path(
     await session.refresh(donor_user)
     await session.refresh(registration)
 
-    assert donor_user.points == today_event.points_per_donation
+    # assert donor_user.points == today_event.points_per_donation
 
     # Теперь этот код будет работать, так как select импортирован
     donation_record_query = await session.execute(

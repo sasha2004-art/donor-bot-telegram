@@ -23,14 +23,14 @@ async def test_create_full_backup_xlsx(session: AsyncSession):
         telegram_id=1,
         full_name="User Export",
         university="Test",
-        points=50,
+        #points=50,
     )
     donation1 = Donation(
         id=1,
         user_id=1,
         donation_date=date(2024, 1, 1),
         donation_type="test",
-        points_awarded=50,
+        #points_awarded=50,
     )
     session.add_all([user1, donation1])
     await session.commit()
@@ -53,7 +53,7 @@ async def test_create_full_backup_xlsx(session: AsyncSession):
     users_df = pd.read_excel(xls, sheet_name="Users")
     assert len(users_df) == 1
     assert users_df.iloc[0]["full_name"] == "User Export"
-    assert users_df.iloc[0]["points"] == 50
+    # assert users_df.iloc[0]["#points"] == 50
 
 
 # --- Тесты Импорта ---

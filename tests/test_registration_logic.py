@@ -72,7 +72,7 @@ async def test_successful_registration(db_session: AsyncSession, male_user: User
         donation_type="whole_blood",
         participant_limit=10,
         location="Тестовая локация",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     db_session.add(event)
     await db_session.commit()
@@ -101,7 +101,7 @@ async def test_blocked_by_potential_waiver(db_session: AsyncSession, male_user: 
         donation_type="whole_blood",
         participant_limit=10,
         location="Локация А",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     event_B = DbEvent(
         name="Донация Б",
@@ -111,7 +111,7 @@ async def test_blocked_by_potential_waiver(db_session: AsyncSession, male_user: 
         donation_type="plasma",
         participant_limit=10,
         location="Локация Б",
-        points_per_donation=50,
+        # points_per_donation=50,
     )
     db_session.add_all([event_A, event_B])
     await db_session.commit()
@@ -143,7 +143,7 @@ async def test_not_blocked_if_waiver_ends(db_session: AsyncSession, male_user: U
         donation_type="whole_blood",
         participant_limit=10,
         location="Локация А",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     event_C = DbEvent(
         name="Донация С",
@@ -153,7 +153,7 @@ async def test_not_blocked_if_waiver_ends(db_session: AsyncSession, male_user: U
         donation_type="plasma",
         participant_limit=10,
         location="Локация C",
-        points_per_donation=50,
+        # points_per_donation=50,
     )
     db_session.add_all([event_A, event_C])
     await db_session.commit()
@@ -181,13 +181,13 @@ async def test_blocked_by_yearly_limit_combined(
                 user_id=female_user.id,
                 donation_date=datetime.date.today() - datetime.timedelta(days=200),
                 donation_type="whole_blood",
-                points_awarded=10,
+                # points_awarded=10,
             ),
             Donation(
                 user_id=female_user.id,
                 donation_date=datetime.date.today() - datetime.timedelta(days=300),
                 donation_type="whole_blood",
-                points_awarded=10,
+                # points_awarded=10,
             ),
         ]
     )
@@ -202,7 +202,7 @@ async def test_blocked_by_yearly_limit_combined(
         donation_type="whole_blood",
         participant_limit=10,
         location="Локация 1",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     db_session.add(future_event_1)
     await db_session.commit()
@@ -218,7 +218,7 @@ async def test_blocked_by_yearly_limit_combined(
         donation_type="whole_blood",
         participant_limit=10,
         location="Локация 2",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     db_session.add(event_to_register_ok)
     await db_session.commit()
@@ -242,7 +242,7 @@ async def test_blocked_by_yearly_limit_combined(
         donation_type="whole_blood",
         participant_limit=10,
         location="Локация 3",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     db_session.add(event_to_register_fail)
     await db_session.commit()
@@ -271,7 +271,7 @@ async def test_yearly_limit_not_blocked_by_other_type(
                 donation_date=datetime.date.today()
                 - datetime.timedelta(days=30 * (i + 1)),
                 donation_type="plasma",
-                points_awarded=10,
+                # points_awarded=10,
             )
         )
     await db_session.commit()
@@ -285,7 +285,7 @@ async def test_yearly_limit_not_blocked_by_other_type(
         donation_type="whole_blood",
         participant_limit=10,
         location="Тестовая локация",
-        points_per_donation=100,
+        # points_per_donation=100,
     )
     db_session.add(blood_event)
     await db_session.commit()

@@ -9,7 +9,7 @@ from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 
 from bot.db.models import User, Event, MedicalWaiver, Feedback
-from bot.states.states import Registration, EventCreation, PointsChange, FeedbackSurvey
+from bot.states.states import Registration, EventCreation, FeedbackSurvey
 from bot.handlers import common as common_handlers
 from bot.handlers.admin import event_management
 from bot.handlers.admin import user_management as user_management_handlers
@@ -193,7 +193,7 @@ async def test_add_to_calendar_handler(session: AsyncSession, mocker):
         event_datetime=datetime.datetime.now(),
         location="Test Location",
         donation_type="blood",
-        points_per_donation=1,
+        # points_per_donation=1,
         participant_limit=1,
     )
     session.add_all([user, event])

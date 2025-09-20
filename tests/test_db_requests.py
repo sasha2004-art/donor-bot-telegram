@@ -558,7 +558,7 @@ async def test_get_users_for_event_notification(
             user_id=user.id,
             donation_type=don["type"],
             donation_date=today - datetime.timedelta(days=don["days_ago"]),
-            points_awarded=10,
+            # points_awarded=10,
         )
         session.add(donation)
 

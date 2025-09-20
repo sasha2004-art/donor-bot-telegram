@@ -237,17 +237,15 @@ async def confirm_donation_transaction(
     event = await session.get(Event, registration.event_id)
     event_date = (
         event.event_datetime.date()
-    )  # Получаем только дату для донации и медотвода
-
-    points_to_award = 0 #event.points_per_donation
+    )
 
     # Создаем запись о донации
     donation = Donation(
         user_id=user.id,
         event_id=event.id,
         donation_date=event_date,
-        donation_type=event.donation_type,
-        points_awarded=points_to_award,
+        donation_type=event.donation_type
+        # Убедитесь, что 'points_awarded' здесь НЕТ
     )
 
     # Создаем системный медотвод
@@ -269,11 +267,10 @@ async def confirm_donation_transaction(
     )
 
     # Обновляем пользователя и регистрацию
-    # user.points += points_to_award
     registration.status = "attended"
 
     session.add_all([donation, waiver])
-    await session.commit()
+    # await session.commit() # <-- ВАЖНО: УБЕДИТЕСЬ, ЧТО ЭТОГО КОММИТА ЗДЕСЬ НЕТ
     return end_date
 
 

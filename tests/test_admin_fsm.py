@@ -192,7 +192,7 @@ async def test_event_editing_fsm_full_path(session: AsyncSession, mocker):
         event_datetime=datetime.datetime.now(),
         location="Test",
         donation_type="d",
-        points_per_donation=1,
+        # points_per_donation=1,
         participant_limit=1,
     )
     session.add(event)
@@ -391,7 +391,7 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
         full_name="User One",
         university="Test",
         is_dkm_donor=False,
-        points=0,
+        # points=0,
         gender="male",
     )
     user2 = User(
@@ -400,7 +400,7 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
         full_name="User Two",
         university="Test",
         is_dkm_donor=False,
-        points=0,
+        # points=0,
         gender="female",
     )
 
@@ -409,7 +409,7 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
         event_datetime=datetime.datetime.now() - datetime.timedelta(days=5),
         location="Test",
         donation_type="whole_blood",
-        points_per_donation=100,
+        # points_per_donation=100,
         participant_limit=10,
     )
     session.add_all([admin, user1, user2, past_event])
@@ -481,7 +481,7 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
         .all()
     )
     assert len(donations_user1) == 1
-    assert user1.points == 100
+    # assert user1.points == 100
     assert user1.is_dkm_donor is False  # Не отмечали ДКМ
 
     # Проверяем пользователя 2
@@ -492,5 +492,5 @@ async def test_post_event_processing_fsm(session: AsyncSession, mocker):
         .all()
     )
     assert len(donations_user2) == 1
-    assert user2.points == 100
+    # assert user2.points == 100
     assert user2.is_dkm_donor is True  # Отмечали ДКМ

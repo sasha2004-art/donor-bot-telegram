@@ -1,6 +1,7 @@
+WARNING  matplotlib.font_manager:font_manager.py:1035 Matplotlib is building the font cache; this may take a moment.
 ERROR    main:main.py:401 Error processing survey submission: Expecting value: line 1 column 1 (char 0)
 ERROR    main:main.py:119 Telegram WebApp data validation failed: Hash not found in auth data. Raw auth_data: 'invalid_hash_string'
 ERROR    main:main.py:306 Survey validation failed: Hash not found in auth data
-ERROR    main:main.py:119 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%2C%22username%22%3A%22test%22%7D&hash=7550b6e8d357001042aa7dac01ac28b906c6ae24d0b9a2982472e0abcdefghij'
+ERROR    main:main.py:119 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%2C%22username%22%3A%22test%22%7D&hash=1f74f835d5c80fa9cd5726860924dbbb025b41bcfb85fc9a96386babcdefghij'
 ERROR    main:main.py:119 Telegram WebApp data validation failed: Hash not found in auth data. Raw auth_data: 'user=%7B%22id%22%3A+123%7D&auth_date=1700000000'
-ERROR    main:main.py:119 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%7D&hash=3abac5d9ba956d6e1e5a4ee3c0ca4edde76367cd71ea9c21788f9b87d3c0b674&new_param=hacker'
+ERROR    main:main.py:119 Telegram WebApp data validation failed: Invalid hash. Raw auth_data: 'auth_date=1700000000&query_id=AAg123456789&user=%7B%22id%22%3A123%7D&hash=7f418f8dc9959c3780f4802fc20176ba29db4fc77b7a56f6c28569fe3fbe9e5c&new_param=hacker'

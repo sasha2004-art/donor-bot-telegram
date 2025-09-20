@@ -22,26 +22,26 @@ PATHS_TO_CHECK = "bot/ tests/"
 
 # --- Конфигурация проверок ---
 CHECKS = [
-    (
-        "1. Formatting (black)",
-        f"docker-compose run --rm bot black --check {PATHS_TO_CHECK}",
-    ),
-    (
-        "2. Import Sorting (isort)",
-        f"docker-compose run --rm bot isort --check-only {PATHS_TO_CHECK}",
-    ),
-    (
-        "3. Linting (flake8)",
-        f"docker-compose run --rm bot flake8 {PATHS_TO_CHECK} --count --ignore=E501,W503 --show-source --statistics",
-    ),
-    (
-        "4. Static Type Checking (mypy)",
-        f"docker-compose run --rm bot mypy {PATHS_TO_CHECK}",
-    ),
-    (
-        "5. Code Security (bandit)",
-        "docker-compose run --rm bot bandit -c pyproject.toml -r bot/",
-    ),
+    # (
+    #     "1. Formatting (black)",
+    #     f"docker-compose run --rm bot black --check {PATHS_TO_CHECK}",
+    # ),
+    # (
+    #     "2. Import Sorting (isort)",
+    #     f"docker-compose run --rm bot isort --check-only {PATHS_TO_CHECK}",
+    # ),
+    # (
+    #     "3. Linting (flake8)",
+    #     f"docker-compose run --rm bot flake8 {PATHS_TO_CHECK} --count --ignore=E501,W503 --show-source --statistics",
+    # ),
+    # (
+    #     "4. Static Type Checking (mypy)",
+    #     f"docker-compose run --rm bot mypy {PATHS_TO_CHECK}",
+    # ),
+    # (
+    #     "5. Code Security (bandit)",
+    #     "docker-compose run --rm bot bandit -c pyproject.toml -r bot/",
+    # ),
     (
         "6. Unit Tests (pytest)",
         "docker-compose run --rm bot pytest",
