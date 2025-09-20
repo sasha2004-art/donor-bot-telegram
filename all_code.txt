@@ -6,7 +6,6 @@ Mihi donor bot/
 ├── donor_bot_telegram.egg-info/
 ├── tests/
 ├── webapp/
-├── .env
 ├── .env.example
 ├── .gitignore
 ├── Dockerfile
@@ -107,22 +106,6 @@ Mihi donor bot/
 
 ==================== СОДЕРЖИМОЕ ФАЙЛОВ ====================
 
---- НАЧАЛО ФАЙЛА: .env ---
-
-BOT_TOKEN=8140767983:AAEjtVpc8avWtV86wfpRfW2O9l8SYzbswhM
-SUPER_ADMIN_ID=1031233699
-
-NGROK_AUTHTOKEN=1qZfvDIREz2QtiVo9UL6yNY8v0B_5N2XU9ZjX2DoXpPe8tUae
-
-DB_HOST=db
-DB_PORT=5432
-DB_NAME=donor_bot_db
-DB_USER=donor_user
-DB_PASS=strong123321
-QR_SECRET_KEY=a_very_secret_key_for_hashing_qr_codes_!@#$
-
---- КОНЕЦ ФАЙЛА: .env ---
-
 --- НАЧАЛО ФАЙЛА: .gitignore ---
 
 __pycache__/ 
@@ -139,6 +122,7 @@ all_code.txt
 .pytest_cache
 .mypy_cache
 logs/
+all_code.txt
 
 --- КОНЕЦ ФАЙЛА: .gitignore ---
 

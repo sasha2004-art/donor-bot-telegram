@@ -40,6 +40,8 @@ EXCLUDE_FILES = {
     ".DS_Store",
     "package-lock.json",
     "yarn.lock",
+    ".env",
+    "env",
 }
 
 # Расширения файлов, которые нужно включить (для файлов вне frontend)

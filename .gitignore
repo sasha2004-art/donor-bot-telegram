@@ -12,3 +12,4 @@ all_code.txt
 .pytest_cache
 .mypy_cache
 logs/
+all_code.txt
